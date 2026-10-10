@@ -29,6 +29,12 @@ android {
             versionNameSuffix = "-debug"
         }
         release {
+            // 用 Android SDK 自动生成的默认调试密钥签名，使 release 产物可直接安装
+            //（未配置签名时只会产出 app-release-unsigned.apk）。
+            // 注意：debug keystore 不适合上架应用商店，且换机器/换 CI 后密钥会变，
+            // 届时无法覆盖安装旧版本。正式分发请换成自己的 keystore。
+            signingConfig = signingConfigs.getByName("debug")
+
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
