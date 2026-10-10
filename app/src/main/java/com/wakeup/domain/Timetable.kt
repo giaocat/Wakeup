@@ -122,9 +122,16 @@ data class Term(
     val startEpochSeconds: Long,
 ) {
     /** 开学第一周周一。 */
+    /**
+     * 开学第一周周一。
+     *
+     * 必须按**学校所在时区**解释服务端时间戳，不能用 [ZoneId.systemDefault()]：
+     * 同一时间戳在不同时区可能落到不同日期（1787500800 在 UTC 是 8/24 00:00，
+     * 在 UTC+8 是 8/24 08:00），否则结果会随构建/运行机器时区变化。
+     */
     val firstMonday: LocalDate
         get() = java.time.Instant.ofEpochSecond(startEpochSeconds)
-            .atZone(ZoneId.systemDefault())
+            .atZone(TERM_ZONE)
             .toLocalDate()
 
     /** 指定周次的周一。 */
@@ -144,6 +151,14 @@ data class Term(
     }
 
     companion object {
+        /**
+         * 学校所在时区。
+         *
+         * 学期起始时间戳由服务端给出，必须固定用这个时区解释，不能跟随机器时区，
+         * 否则同一份数据在不同时区会解析出不同的开学日期。
+         */
+        val TERM_ZONE: ZoneId = ZoneId.of("Asia/Shanghai")
+
         /** ISO 星期（周一=1 … 周日=7）。 */
         fun isoDayOfWeek(date: LocalDate): Int = date.dayOfWeek.value
 

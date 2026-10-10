@@ -5,6 +5,7 @@ import com.wakeup.data.cache.toResponseOrNull
 import com.wakeup.data.remote.TimetableMapper
 import com.wakeup.data.remote.TimetablePayloadParser
 import com.wakeup.data.remote.TimetableRemoteDataSource
+import com.wakeup.domain.Term
 import com.wakeup.domain.WeekExpression
 import com.wakeup.ui.ScheduleUiState
 import com.wakeup.ui.schedule.computeGridLayout
@@ -15,6 +16,9 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 
 /**
  * 解析链路单元测试。
@@ -122,6 +126,37 @@ class TimetableParsingTest {
         assertEquals(term.firstMonday.plusDays(2), term.dateOf(1, 3))
         assertEquals(1, term.weekOf(term.firstMonday))
         assertNull(term.weekOf(term.firstMonday.minusDays(1)))
+    }
+
+    @Test
+    fun `学期起始时间按学校时区解释_不随机器时区变化`() {
+        // CI runner 是 UTC，开发机是 UTC+8。若用 ZoneId.systemDefault() 解释服务端
+        // 时间戳，同一份数据在两地可能解析出不同日期（UTC 00:00 与 UTC+8 08:00 同天，
+        // 但 22:00 UTC 就已经是次日）。这里锁定"一律按 Asia/Shanghai 解释"。
+        assertEquals(ZoneId.of("Asia/Shanghai"), Term.TERM_ZONE)
+
+        val epoch = 1787500800L
+        val term = Term(name = "2026-2027-1", totalWeeks = 20, startEpochSeconds = epoch)
+        assertEquals(2026, term.firstMonday.year)
+        assertEquals(8, term.firstMonday.monthValue)
+        assertEquals(24, term.firstMonday.dayOfMonth)
+
+        // 边界用例：+22h 后 UTC 仍是 8/24，而 Asia/Shanghai 已是 8/25。
+        // 固定时区后仍应归到同一周的周一 8/24。
+        val boundary = Term(
+            name = "2026-2027-1",
+            totalWeeks = 20,
+            startEpochSeconds = epoch + 22 * 3600L,
+        )
+        assertEquals(LocalDate.of(2026, 8, 24), boundary.firstMonday)
+
+        // 直接验证映射结果与机器时区无关
+        val mapped = TimetableMapper.toDomain(TimetablePayloadParser.parsePayload(sample)).term
+        val expected = Instant.ofEpochSecond(1787500800L)
+            .atZone(ZoneId.of("Asia/Shanghai"))
+            .toLocalDate()
+            .let { it.minusDays((it.dayOfWeek.value - 1).toLong()) }
+        assertEquals(expected, mapped.firstMonday)
     }
 
     @Test

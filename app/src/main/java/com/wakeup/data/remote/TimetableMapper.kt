@@ -9,7 +9,6 @@ import com.wakeup.data.model.CourseEntry
 import com.wakeup.data.model.CourseSlot
 import com.wakeup.data.model.TimetableResponse
 import java.time.Instant
-import java.time.ZoneId
 
 /** 把接口 DTO 转换成 UI 直接可用的领域模型。 */
 object TimetableMapper {
@@ -39,13 +38,14 @@ object TimetableMapper {
     private fun toTerm(total: String?, starttime: Long, name: String?): Term {
         val totalWeeks = total?.trim()?.toIntOrNull()?.takeIf { it > 0 } ?: 20
         // starttime 是"开学第一周周一"所在那一周的某个时刻，这里归一到当天 00:00。
+        // 一律按学校时区解释，避免同一份数据在不同时区解析出不同日期。
         val firstMonday = if (starttime > 0L) {
-            val date = Instant.ofEpochSecond(starttime).atZone(ZoneId.systemDefault()).toLocalDate()
+            val date = Instant.ofEpochSecond(starttime).atZone(Term.TERM_ZONE).toLocalDate()
             date.minusDays((date.dayOfWeek.value - 1).toLong())
         } else {
-            java.time.LocalDate.now().with(java.time.DayOfWeek.MONDAY)
+            java.time.LocalDate.now(Term.TERM_ZONE).with(java.time.DayOfWeek.MONDAY)
         }
-        val normalized = firstMonday.atStartOfDay(ZoneId.systemDefault()).toEpochSecond()
+        val normalized = firstMonday.atStartOfDay(Term.TERM_ZONE).toEpochSecond()
         return Term(
             name = name.orEmpty(),
             totalWeeks = totalWeeks,
