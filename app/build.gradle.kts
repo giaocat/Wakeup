@@ -9,12 +9,14 @@ plugins {
 
 android {
     namespace = "com.wakeup"
-    compileSdk = 37
+    // 36 是 Google 公开 SDK 仓库当前可获取的最高平台；
+    // android-37 仍属 preview 频道，CI 上无法通过 sdkmanager 安装
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.wakeup"
         minSdk = 26
-        targetSdk = 37
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"
 

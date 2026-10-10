@@ -21,8 +21,17 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 - **JDK**：17 及以上（Android Studio 自带的 JBR 25 可用）
 - **Gradle**：9.6.0（由 `gradle/wrapper` 指定，首次构建自动下载）
 - **AGP**：9.4.1，**Kotlin**：2.2.10（AGP 9 自带 Kotlin 支持，无需再声明 `kotlin.android` 插件）
-- **compileSdk / targetSdk**：37，**minSdk**：26
+- **compileSdk / targetSdk**：36，**minSdk**：26
 - **包名**：`com.wakeup`（debug 构建为 `com.wakeup.debug`）
+
+> **为什么是 compileSdk 36 而不是 37？**
+> Google 公开的 SDK 仓库（`repository2-3.xml`）目前最高只提供 `platforms;android-36`，
+> `android-37` 仍在 preview 频道，CI 上无法用 `sdkmanager` 安装。
+> 因此依赖版本也统一控制在 `minCompileSdk <= 36`：
+> `material3 1.5.0-alpha01`（仍是带 Material 3 Expressive API 且 `minCompileSdk=35` 的版本，
+> `1.5.0-alpha29` 起升到 37）、`compose-bom 2026.06.01`、`navigation-compose 2.9.8`、
+> `lifecycle 2.10.0`、`core-ktx 1.18.0`。
+> 等 android-37 进入稳定仓库后，把这些版本一起提上去即可。
 
 安装包产物：`app/build/outputs/apk/debug/app-debug.apk`
 

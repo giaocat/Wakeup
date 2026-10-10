@@ -1,13 +1,20 @@
 [versions]
 agp = "9.4.1"
 kotlin = "2.2.10"
-coreKtx = "1.19.1"
-lifecycle = "2.11.0"
+# 以下版本全部控制在 minCompileSdk <= 36：
+# 公开 SDK 仓库最高只提供 platforms;android-36，android-37 仍是 preview 频道，
+# CI 上无法通过 sdkmanager 安装，所以 compileSdk 固定 36、依赖也要匹配。
+coreKtx = "1.18.0"
+# 2.11.0 的 lifecycle-*-compose 要求 compileSdk 37，2.10.0 是 35
+lifecycle = "2.10.0"
 activityCompose = "1.13.0"
-composeBom = "2026.09.00"
-material3 = "1.5.0-beta01"
+composeBom = "2026.06.01"
+# 1.5.0-alpha01 是仍带 Material 3 Expressive API（MaterialExpressiveTheme /
+# MotionScheme / MaterialShapes / LoadingIndicator）且 minCompileSdk=35 的最后几个版本；
+# alpha29 起 minCompileSdk 变为 37。
+material3 = "1.5.0-alpha01"
 material3Adaptive = "1.4.0-alpha03"
-navigation = "2.10.2"
+navigation = "2.9.8"
 datastore = "1.2.1"
 retrofit = "3.0.0"
 okhttp = "5.2.1"
