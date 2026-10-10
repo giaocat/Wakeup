@@ -1,0 +1,24 @@
+# Android / Gradle 构建产物（不带前导斜杠，匹配任意层级）
+build/
+.gradle/
+.kotlin/
+app/build/
+
+# 签名与本机配置
+*.jks
+*.keystore
+keystore.properties
+local.properties
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+captures/
+.externalNativeBuild/
+.cxx/
+
+# 产物兜底
+*.apk
+*.aab
+*.ap_
