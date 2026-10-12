@@ -53,12 +53,21 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 
 发布一个版本：
 
+1. **先在 [`CHANGELOG.md`](CHANGELOG.md) 里写好本版段落** —— 新增一个 `## X.Y.Z`（不带 `v`，
+   与 `versionName` 一致），只写用户能感知的变化；
+2. 升 `app/build.gradle.kts` 里的 `versionCode` / `versionName`；
+3. 打标签并推送：
+
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.0.6
+git push origin v1.0.6
 ```
 
-> 发布需要**固定签名密钥**，配置见「九、发布与签名」。缺配置时 CI 会直接失败，
+> **发布说明自动取自 `CHANGELOG.md`**：`release.yml` 会按标签名切出对应的 `## X.Y.Z` 段落，
+> 作为 Release 的说明文本（找不到段落时退回「自动生成的提交列表」，不会让发布失败）。
+> 所以每次 release 都是手写好的更新日志，而不是提交标题堆砌。
+
+> 发布需要**固定签名密钥**，配置见「十、发布与签名」。缺配置时 CI 会直接失败，
 > 而不是静默产出一个用临时调试密钥签名的包（那种包无法覆盖安装）。
 
 ---
@@ -527,6 +536,18 @@ export KEY_PASSWORD=...
 ```bash
 apksigner verify --print-certs app/build/outputs/apk/release/app-release.apk
 ```
+
+### 发布说明（CHANGELOG）
+
+**每次发版都要先写 [`CHANGELOG.md`](CHANGELOG.md)。** 它是发布说明的唯一来源：
+
+- 一个版本一个 `## X.Y.Z` 段落（不带 `v`，与 `versionName` 一致），版本号大的在前；
+- 只写用户能感知的变化，用 `新增` / `修复` / `注意` 三类，
+  其中 **`注意` 用于升级前必须知道的事**（签名变更、需要卸载等）；
+- 不要照抄 commit 标题 —— 提交信息是给开发者看的，日志是给用户看的。
+
+`release.yml` 的 `Extract changelog` 步骤会按标签名（`v1.0.6` → `1.0.6`）切出对应段落，
+作为 Release 正文。**找不到段落时退回自动生成的提交列表并打 warning**，不会让发布失败。
 
 ---
 
