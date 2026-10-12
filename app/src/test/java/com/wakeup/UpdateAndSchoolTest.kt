@@ -1,5 +1,6 @@
 package com.wakeup
 
+import com.wakeup.data.update.UpdateChecker
 import com.wakeup.data.update.VersionCompare
 import com.wakeup.domain.Course
 import com.wakeup.domain.Term
@@ -162,5 +163,95 @@ class UpdateAndSchoolTest {
         // Int.MIN_VALUE 之类的极端输入不应因为减法溢出而返回错误符号
         assertTrue(VersionCompare.compare("2.0.0", "1.0.0") > 0)
         assertTrue(VersionCompare.compare("1.0.0", "2.0.0") < 0)
+    }
+
+    // ---------------- atom feed 解析 ----------------
+
+    @Test
+    fun `解析 releases_atom feed`() {
+        val releases = UpdateChecker.parseAtom(SAMPLE_ATOM)
+        assertEquals(2, releases.size)
+
+        val first = releases[0]
+        assertEquals("1.0.1", first.version) // 应去掉 v 前缀
+        assertEquals("v1.0.1", first.title)
+        assertEquals("https://github.com/giaocat/Wakeup/releases/tag/v1.0.1", first.url)
+        assertTrue("发布说明应被解析出来", first.content.contains("修复了配色"))
+        assertFalse("不应残留 HTML 标签", first.content.contains("<p>"))
+        assertTrue("实体应被还原成 &", first.content.contains("A & B"))
+
+        val second = releases[1]
+        assertEquals("1.0.0", second.version)
+        assertEquals("https://github.com/giaocat/Wakeup/releases/tag/v1.0.0", second.url)
+    }
+
+    @Test
+    fun `atom 解析对残缺内容容错`() {
+        assertEquals(0, UpdateChecker.parseAtom("").size)
+        assertEquals(0, UpdateChecker.parseAtom("<feed></feed>").size)
+        // 有 entry 但没有 id 的应被跳过
+        assertEquals(
+            0,
+            UpdateChecker.parseAtom("<feed><entry><title>x</title></entry></feed>").size,
+        )
+    }
+
+    @Test
+    fun `HTML 实体还原与去标签`() {
+        assertEquals("A & B", UpdateChecker.decodeEntities("A &amp; B"))
+        assertEquals("引号 \" 和 '", UpdateChecker.decodeEntities("引号 &quot; 和 &#39;"))
+        // 真实标签整段丢弃
+        assertEquals("去掉标签", UpdateChecker.decodeEntities("<p>去</p><b>掉</b>标签"))
+        // 关键：atom feed 里的内容是被转义的 HTML，必须先还原实体再去标签
+        assertEquals("X", UpdateChecker.decodeEntities("&lt;p&gt;X&lt;/p&gt;"))
+        assertEquals(
+            "先还原再去标签",
+            UpdateChecker.decodeEntities("&lt;p&gt;先还原&lt;/p&gt;&lt;p&gt;再去标签&lt;/p&gt;"),
+        )
+        // 段落之间的空行保留为换行
+        assertEquals("换行\n\n保留", UpdateChecker.decodeEntities("<p>换行</p>\n\n\n<p>保留</p>"))
+        // 数字实体
+        assertEquals("A", UpdateChecker.decodeEntities("&#65;"))
+        assertEquals("A", UpdateChecker.decodeEntities("&#x41;"))
+        // 不认识的实体原样保留，不能丢内容
+        assertEquals("&unknown; 保留", UpdateChecker.decodeEntities("&unknown; 保留"))
+        // 单个 & 不应出错
+        assertEquals("A & B", UpdateChecker.decodeEntities("A & B"))
+        // 只解码一次：&amp;amp; 的结果是字面量 &amp;，不是 &
+        assertEquals("A &amp; B", UpdateChecker.decodeEntities("A &amp;amp; B"))
+        assertEquals("", UpdateChecker.decodeEntities(""))
+        assertEquals("", UpdateChecker.decodeEntities("   "))
+    }
+
+    @Test
+    fun `字面量尖括号会被当作标签去掉_这是已知取舍`() {
+        // 解码后的 `< b & c >` 与真标签无法区分，这里选择"发布说明干净可读"，
+        // 代价是文本里的字面量尖括号被吃掉（两侧空格保留）。
+        // 仅影响弹窗展示，不做解析，因此安全。
+        assertEquals("a d", UpdateChecker.decodeEntities("a &lt; b &amp; c &gt; d"))
+        assertEquals("引用", UpdateChecker.decodeEntities("&lt;div&gt;引用&lt;/div&gt;"))
+    }
+
+    private companion object {
+        /** 按 giaocat/Wakeup 实际返回的 `releases.atom` 结构构造。 */
+        const val SAMPLE_ATOM = """<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/" xml:lang="en-US">
+  <link type="text/html" rel="alternate" href="https://github.com/giaocat/Wakeup/releases"/>
+  <title>Release notes from Wakeup</title>
+  <entry>
+    <id>tag:github.com,2008:Repository/123456789/v1.0.1</id>
+    <updated>2026-10-11T07:07:26Z</updated>
+    <link rel="alternate" type="text/html" href="https://github.com/giaocat/Wakeup/releases/tag/v1.0.1"/>
+    <title>v1.0.1</title>
+    <content type="html">&lt;p&gt;修复了配色区分度，A &amp; B&lt;/p&gt;</content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Repository/123456789/v1.0.0</id>
+    <updated>2026-10-10T07:07:26Z</updated>
+    <link rel="alternate" type="text/html" href="https://github.com/giaocat/Wakeup/releases/tag/v1.0.0"/>
+    <title>v1.0.0</title>
+    <content type="html">&lt;p&gt;首个版本&lt;/p&gt;</content>
+  </entry>
+</feed>"""
     }
 }

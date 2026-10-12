@@ -34,6 +34,12 @@ android {
             "RELEASES_PAGE_URL",
             "\"https://github.com/giaocat/Wakeup/releases\"",
         )
+        // atom feed：网页资源，不受 API 的匿名限流影响，是更新检测的首选
+        buildConfigField(
+            "String",
+            "RELEASES_ATOM_URL",
+            "\"https://github.com/giaocat/Wakeup/releases.atom\"",
+        )
     }
 
     buildTypes {

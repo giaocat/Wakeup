@@ -321,16 +321,39 @@ adb install -r app\build\outputs\apk\debug\app-debug.apk
 
 应用启动时会自动查一次 GitHub Releases，发现新版本就弹窗提示；设置页也有「检查更新」入口。
 
-- 数据源：`https://api.github.com/repos/giaocat/Wakeup/releases/latest`（仓库地址在 `app/build.gradle.kts` 的
-  `buildConfigField` 里配置：`GITHUB_REPO` / `RELEASES_API_URL` / `RELEASES_PAGE_URL`）；
+### 数据源：优先 atom，而不是 API
+
+| | 地址 | 限流 |
+| --- | --- | --- |
+| **首选** | `https://github.com/giaocat/Wakeup/releases.atom` | **无限流**（网页资源） |
+| 后备 | `https://api.github.com/repos/giaocat/Wakeup/releases/latest` | 匿名 **60 次/小时/IP** |
+
+**为什么不用 API 做首选**：REST API 的匿名配额只有 60 次/小时/IP，而且是按**出口 IP** 算的 ——
+同一个 NAT、校园网、运营商 CGNAT 后面的用户会共享这个额度。一旦撞满，接口返回 403，
+更新检测就彻底失效（这种故障还很难排查）。atom feed 走网页通道，没有这个问题，
+实测连续请求多次均正常返回。
+
+两者都在 `app/build.gradle.kts` 的 `buildConfigField` 里配置：
+`GITHUB_REPO` / `RELEASES_ATOM_URL` / `RELEASES_API_URL` / `RELEASES_PAGE_URL`。
+atom 解析不出任何版本时才退回 API。
+
+### 其它要点
+
+- **自动检查带一天冷却**（`AUTO_CHECK_COOLDOWN_MS`，存在 DataStore）：频繁启动不会反复请求，
+  进一步降低撞限流的概率；用户手动点「检查」不受限制。
 - 版本比较见 `VersionCompare`：按 `major.minor.patch` 逐段比，段数不同时缺的段按 0；
-  带 `-beta1` 之类后缀的视为**预发布**，同号下低于正式版（所以 `pre-release` 不会推给用户，代码里也直接跳过
-  `prerelease`/`draft`）；
-- 采取「提示 + 打开发布页」的方式，**不做应用内下载安装** —— 后者需要 `REQUEST_INSTALL_PACKAGES` 权限，
-  也会被系统的未知来源限制拦住。因此应用不需要任何新权限。
+  带 `-beta1` 之类后缀的视为**预发布**，同号下低于正式版。atom 里可能混有预发布 tag，
+  代码取「版本最高的一个」而不是「最新的一个」，所以预发布不会顶掉正式版。
+- 采取「提示 + 打开发布页」的方式，**不做应用内下载安装** —— 后者需要 `REQUEST_INSTALL_PACKAGES`
+  权限，也会被系统的未知来源限制拦住。因此应用不需要任何新权限。
+- 发布说明从 atom 的 `<content>` 取，经「先还原 HTML 实体、再去掉标签」转成纯文本。
+  **已知取舍**：`&lt;` 解码后与真标签无法区分，这里优先保证发布说明干净可读
+  （`&lt;p&gt;X&lt;/p&gt;` → `X`），代价是文本里的字面量尖括号会被一并去掉。
+  该字段仅用于弹窗展示、不做解析，所以安全。
 
 相关校验见 `UpdateAndSchoolTest.kt`：版本号解析（含 `v` 前缀、`-beta`、`+build`、非法输入）、
-新版本判定、预发布语义、以及比较结果不受整型溢出影响。
+新版本判定、预发布语义、整型溢出、**atom feed 解析**（喂真实 feed 片段）、
+实体还原/去标签顺序、以及残缺 feed 的容错。
 
 ---
 

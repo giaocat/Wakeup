@@ -115,6 +115,13 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setReminderMinutes(minutes: Int) = edit { it[KEY_REMINDER_MINUTES] = minutes.toLong() }
 
+    /** 上次成功检查更新的时间戳（毫秒）。0 表示从未检查过。 */
+    val lastUpdateCheckAt: Flow<Long> = context.dataStore.data
+        .map { it[KEY_LAST_UPDATE_CHECK] ?: 0L }
+
+    suspend fun setLastUpdateCheckAt(epochMillis: Long) =
+        edit { it[KEY_LAST_UPDATE_CHECK] = epochMillis }
+
     private suspend fun edit(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {
         context.dataStore.edit(block)
     }
@@ -131,6 +138,9 @@ class SettingsRepository(private val context: Context) {
         val KEY_HIDE_UNSCHEDULED = booleanPreferencesKey("hide_unscheduled")
         val KEY_REMINDER_ENABLED = booleanPreferencesKey("reminder_enabled")
         val KEY_REMINDER_MINUTES = longPreferencesKey("reminder_minutes")
+
+        /** 上次成功检查更新的时间戳（毫秒）。 */
+        val KEY_LAST_UPDATE_CHECK = longPreferencesKey("last_update_check_at")
         const val DEFAULT_REMINDER_MINUTES = 15
     }
 }

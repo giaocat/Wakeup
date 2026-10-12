@@ -10,6 +10,7 @@ import com.wakeup.data.repository.UserSettings
 import com.wakeup.data.update.UpdateChecker
 import com.wakeup.data.update.UpdateInfo
 import com.wakeup.data.update.UpdateResult
+import kotlinx.coroutines.flow.first
 import com.wakeup.domain.Course
 import com.wakeup.domain.Timetable
 import com.wakeup.domain.TimetableCourse
@@ -291,13 +292,25 @@ class WakeupViewModel(
         if (auto && _update.value.checked) return
         _update.update { it.copy(checking = true, error = null, checked = true) }
         viewModelScope.launch {
+            if (auto) {
+                val lastCheck = container.settingsRepository.lastUpdateCheckAt.first()
+                val elapsed = System.currentTimeMillis() - lastCheck
+                if (lastCheck > 0L && elapsed in 0 until AUTO_CHECK_COOLDOWN_MS) {
+                    // 还没到冷却时间，跳过请求，避免撞匿名限流
+                    _update.update { it.copy(checking = false) }
+                    return@launch
+                }
+            }
+
             when (val result = updateChecker.check()) {
-                is UpdateResult.Available -> _update.update {
-                    it.copy(checking = false, info = result.info, error = null)
+                is UpdateResult.Available -> {
+                    container.settingsRepository.setLastUpdateCheckAt(System.currentTimeMillis())
+                    _update.update { it.copy(checking = false, info = result.info, error = null) }
                 }
 
-                is UpdateResult.UpToDate -> _update.update {
-                    it.copy(checking = false, info = null, error = null)
+                is UpdateResult.UpToDate -> {
+                    container.settingsRepository.setLastUpdateCheckAt(System.currentTimeMillis())
+                    _update.update { it.copy(checking = false, info = null, error = null) }
                 }
 
                 is UpdateResult.Failed -> _update.update {
@@ -313,6 +326,13 @@ class WakeupViewModel(
     }
 
     companion object {
+        /**
+         * 自动检查更新的冷却时间：一天。
+         *
+         * GitHub Releases 是匿名调用（60 次/小时/IP），启动就查会被限流，
+         * 所以自动检查一天最多一次；用户手动点「检查」不受此限制。
+         */
+        const val AUTO_CHECK_COOLDOWN_MS: Long = 24L * 60 * 60 * 1000
         fun factory(container: AppContainer): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
