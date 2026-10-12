@@ -37,9 +37,47 @@ jobs:
           yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
           "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" "platform-tools"
 
-      # 未配置签名时会产出 app-release-unsigned.apk，仍可作为产物发布
+      # 固定发布密钥：保证每次构建签出来的证书一致，用户才能覆盖安装。
+      # 四个 Secret 缺失时构建会直接失败（见 app/build.gradle.kts），不会静默用调试密钥。
+      - name: Decode signing keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          set -e
+          if [ -z "${KEYSTORE_BASE64}" ]; then
+            echo "::error::缺少 Secret KEYSTORE_BASE64；请按 README「发布与签名」配置"
+            exit 1
+          fi
+          printf '%s' "${KEYSTORE_BASE64}" | base64 -d > "${RUNNER_TEMP}/release.jks"
+          echo "KEYSTORE_FILE=${RUNNER_TEMP}/release.jks" >> "$GITHUB_ENV"
+          echo "已写入 keystore：$(stat -c%s "${RUNNER_TEMP}/release.jks") bytes"
+
       - name: Build release APK
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew assembleRelease --stacktrace
+
+      # 打印签名证书指纹：这是验证「签名是否稳定」的依据 ——
+      # 同一个 keystore 每次构建的指纹必须完全相同。
+      - name: Report signing certificate
+        run: |
+          set -e
+          APK="$(find app/build/outputs/apk/release -name '*.apk' | head -n 1)"
+          echo "APK: ${APK}"
+          if echo "${APK}" | grep -q 'unsigned'; then
+            echo "::error::产出了未签名 APK，签名配置未生效"
+            exit 1
+          fi
+          APKSIGNER="$(find "${ANDROID_HOME}/build-tools" -name apksigner -type f | sort | tail -n 1)"
+          "$APKSIGNER" verify --print-certs "${APK}" | tee /tmp/certs.txt
+          DIGEST="$(grep -i 'SHA-256 digest' /tmp/certs.txt | head -n 1)"
+          echo "签名证书：${DIGEST}"
+          echo "### 签名证书 SHA-256" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat /tmp/certs.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Collect APKs
         run: |

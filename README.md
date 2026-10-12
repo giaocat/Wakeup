@@ -58,10 +58,8 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-> 未配置签名密钥时，Release 产出的是 `app-release-unsigned.apk`。
-> 若要产出可直接安装的签名包，在仓库 Settings → Secrets 添加
-> `KEYSTORE_BASE64`、`KEYSTORE_PASSWORD`、`KEY_ALIAS`、`KEY_PASSWORD`，
-> 并在 `app/build.gradle.kts` 的 `signingConfigs` 中引用。
+> 发布需要**固定签名密钥**，配置见「九、发布与签名」。缺配置时 CI 会直接失败，
+> 而不是静默产出一个用临时调试密钥签名的包（那种包无法覆盖安装）。
 
 ---
 
@@ -357,7 +355,74 @@ atom 解析不出任何版本时才退回 API。
 
 ---
 
-## 九、说明
+## 九、发布与签名
+
+### 为什么必须是固定密钥
+
+Android 要求**覆盖安装时签名一致**。如果每次构建用的密钥不同，用户就装不上新版本，
+必须先卸载 —— 而卸载会丢掉已保存的课表链接和缓存。
+
+CI runner 每次都是全新机器，**由 SDK 自动生成的调试密钥每次都不同**，
+所以绝对不能在 CI 上用调试密钥发版。本项目因此做了两层保障：
+
+1. 提供固定密钥时，`release` 用 `signingConfigs.release` 签名；
+2. **CI 上（`CI` 环境变量存在）缺密钥时直接构建失败**，并提示要配哪些 Secret ——
+   宁可失败，也不要静默发出一个签名会变的包。
+
+本地开发没有密钥时只打印警告并回退调试密钥，方便直接跑 `assembleRelease`。
+
+### 配置步骤
+
+生成密钥（一次性，之后一直用它；**务必备份，丢了就无法再覆盖安装已发布的版本**）：
+
+```bash
+keytool -genkeypair -v -keystore wakeup-release.jks -alias wakeup \
+        -keyalg RSA -keysize 2048 -validity 10950 \
+        -dname "CN=Wakeup, OU=Wakeup, O=giaocat, L=Shenyang, ST=Liaoning, C=CN"
+
+# 转成 base64（-w0 不换行）
+base64 -w0 wakeup-release.jks > keystore-base64.txt
+```
+
+在仓库 Settings → Secrets and variables → Actions 添加四项：
+
+| Secret | 值 |
+| --- | --- |
+| `KEYSTORE_BASE64` | `keystore-base64.txt` 的全部内容 |
+| `KEYSTORE_PASSWORD` | keystore 的 storePassword |
+| `KEY_ALIAS` | `wakeup` |
+| `KEY_PASSWORD` | keyPassword（与 storePassword 相同即可） |
+
+`release.yml` 会把 `KEYSTORE_BASE64` 解到 `${RUNNER_TEMP}/release.jks`，
+再通过环境变量传给 Gradle。
+
+### 本地用同一密钥打包
+
+```bash
+export KEYSTORE_FILE=/绝对路径/wakeup-release.jks
+export KEYSTORE_PASSWORD=...
+export KEY_ALIAS=wakeup
+export KEY_PASSWORD=...
+./gradlew assembleRelease
+```
+
+也支持 `KEYSTORE_BASE64`（构建时解码到 `app/build/release-keystore.jks`），
+以及写在 `gradle.properties` 里的同名属性。`.gitignore` 已忽略 `*.jks` / `*.keystore` /
+`keystore.properties`，密钥不会被提交。
+
+### 核对签名
+
+`release.yml` 里有一个 `Report signing certificate` 步骤，会打印 APK 的证书指纹
+并写进 job summary。**同一个 keystore 每次构建的指纹必须完全相同** ——
+这就是验证签名稳定性的办法。本地核对：
+
+```bash
+apksigner verify --print-certs app/build/outputs/apk/release/app-release.apk
+```
+
+---
+
+## 十、说明
 
 - 课表数据来自教务系统，具体课程请遵循所在学院实际安排。
 - 代码与文档里**不含任何真实课表 token**：示例值统一是占位的 `100000`。

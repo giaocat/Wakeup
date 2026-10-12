@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Base64
 
 plugins {
     // AGP 9 自带 Kotlin 支持，无需再单独应用 org.jetbrains.kotlin.android
@@ -42,17 +43,73 @@ android {
         )
     }
 
+    /**
+     * 取签名配置：环境变量优先（CI 用），其次 gradle 属性（本地用）。
+     *
+     * 环境变量名与 GitHub Actions 里配的一致：KEYSTORE_FILE / KEYSTORE_BASE64 /
+     * KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD。
+     */
+    fun signingValue(name: String): String? =
+        System.getenv(name)?.takeIf { it.isNotBlank() }
+            ?: (project.findProperty(name) as String?)?.takeIf { it.isNotBlank() }
+
+
+    // 固定发布密钥：保证每次构建、每台机器签出来的证书一致，用户才能覆盖安装。
+    // 没提供时回退到 SDK 自动生成的调试密钥（仅供本地开发）。
+    val releaseKeystoreFile = signingValue("KEYSTORE_FILE")?.let { file(it) }
+        ?: signingValue("KEYSTORE_BASE64")?.let { encoded ->
+            val target = layout.buildDirectory.file("release-keystore.jks").get().asFile
+            target.parentFile.mkdirs()
+            target.writeBytes(Base64.getMimeDecoder().decode(encoded))
+            target
+        }
+    val releaseKeystorePassword = signingValue("KEYSTORE_PASSWORD")
+    val releaseKeyAlias = signingValue("KEY_ALIAS") ?: "wakeup"
+    val releaseKeyPassword = signingValue("KEY_PASSWORD") ?: releaseKeystorePassword
+
+    val hasReleaseSigning = releaseKeystoreFile != null &&
+        releaseKeystorePassword != null &&
+        releaseKeystoreFile.exists()
+
+    // CI 上必须用固定密钥：否则每次 runner 都会生成新的调试密钥，
+    // 证书随之变化，用户无法覆盖安装 —— 这种情况直接让构建失败，不要静默产出。
+    val isCi = !System.getenv("CI").isNullOrBlank()
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = releaseKeystoreFile
+                storePassword = releaseKeystorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
         }
         release {
-            // 用 Android SDK 自动生成的默认调试密钥签名，使 release 产物可直接安装
-            //（未配置签名时只会产出 app-release-unsigned.apk）。
-            // 注意：debug keystore 不适合上架应用商店，且换机器/换 CI 后密钥会变，
-            // 届时无法覆盖安装旧版本。正式分发请换成自己的 keystore。
-            signingConfig = signingConfigs.getByName("debug")
+            // 固定发布密钥（signingConfigs 已在上方配置好）
+            signingConfig = if (hasReleaseSigning) {
+                signingConfigs.getByName("release")
+            } else if (isCi) {
+                // CI 上必须用固定密钥：否则每次 runner 都会生成新的调试密钥，
+                // 证书随之变化，用户无法覆盖安装 —— 直接失败，不要静默产出。
+                throw GradleException(
+                    "CI 构建缺少签名密钥：请配置 KEYSTORE_BASE64 / KEYSTORE_PASSWORD / " +
+                        "KEY_ALIAS / KEY_PASSWORD 四个 Secret。" +
+                        "否则每次 CI 都会生成新的调试密钥，用户无法覆盖安装。",
+                )
+            } else {
+                logger.warn(
+                    "⚠ 未配置发布密钥，release 将使用调试密钥签名。" +
+                        "调试密钥因机器而异，产物无法覆盖安装其它签名版本的安装包，请勿分发。",
+                )
+                signingConfigs.getByName("debug")
+            }
 
             isMinifyEnabled = true
             isShrinkResources = true
