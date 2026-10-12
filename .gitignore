@@ -9,6 +9,9 @@ app/build/
 *.keystore
 keystore.properties
 local.properties
+# 例外：发布签名密钥是有意公开的（见 SIGNING.md）。
+# ⚠️ 公开密钥意味着任何人都能签出可覆盖安装的包，请勿把它当安全凭证。
+!wakeup-release.jks
 
 # IDE
 .idea/
