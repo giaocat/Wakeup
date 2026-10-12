@@ -18,8 +18,8 @@ android {
         applicationId = "com.wakeup"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
-        versionName = "1.0.3"
+        versionCode = 5
+        versionName = "1.0.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -194,6 +194,9 @@ dependencies {
     implementation(libs.okhttp.logging)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
+
+    // Smartspacer：「下一节课」Target（清单里用 tools:overrideLibrary 处理它的 minSdk 29）
+    implementation(libs.smartspacer.sdk.plugin)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 

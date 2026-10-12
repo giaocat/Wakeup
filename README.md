@@ -116,6 +116,7 @@ git push origin v1.0.0
 | **今日** | 按时间顺序列出当天课程，正在上的那节标「正在上课」，已结束的自动淡化 |
 | **设置** | 课表链接（完整链接或 token）、服务地址、同步状态、本地缓存占用与清空、主题模式（跟随系统·浅色·深色）、动态取色、隐藏未排课课程 |
 | **课程详情** | 点击任意课程格子或今日课程卡片，弹出底部面板查看时间、地点、教师、周次 |
+| **Smartspacer** | 把「下一节课」提供给桌面/锁屏的「一览」（[详见第九节](#九smartspacer-集成)），点一下打开 App |
 
 顶部只有**一行**标题栏（`CompactHeader`）：‹ 上一周、周次标题（当前周会显示「· 本周」）、周次选择、下一周 ›、刷新。
 原先的 `TopAppBar` 与周次切换行已经合并，少占约 60 dp 纵向空间。设置入口仍在底部导航。
@@ -209,7 +210,11 @@ app/src/main/java/com/wakeup/
 │       └── TimetableRepository.kt# 取数 + 内存缓存 + 本地缓存读写
 ├── domain/
 │   ├── Course.kt                 # Course / TimetableCourse / Timetable
-│   └── Timetable.kt              # WeekExpression / PeriodTimes / Term
+│   ├── Timetable.kt              # WeekExpression / PeriodTimes / Term
+│   └── NextClass.kt              # 「下一节课」推导 + 展示文案（Smartspacer 的数据来源）
+├── smartspacer/
+│   ├── NextClassTarget.kt        # Smartspacer Target（ContentProvider）
+│   └── NextClassUpdateReceiver.kt# 接收 Smartspacer 的定时刷新请求
 ├── ui/
 │   ├── WakeupApp.kt              # Scaffold + 底部导航
 │   ├── WakeupViewModel.kt        # 课表状态、周次切换、缓存恢复、设置项
@@ -217,6 +222,7 @@ app/src/main/java/com/wakeup/
 │   ├── today/TodayScreen.kt
 │   ├── settings/SettingsScreen.kt
 │   ├── components/CourseDetailSheet.kt
+│   │   └── UpdateDialog.kt       # 「发现新版本」弹窗与设置页的检查更新行
 │   └── theme/                    # Color.kt / Theme.kt
 └── util/TimeUtils.kt             # 时刻线定位、相对时间等
 ```
@@ -245,7 +251,15 @@ app/src/main/java/com/wakeup/
 示例数据里的课程、教师、学生（甲/乙/丙… 老师、测试同学）全部是虚构的，
 字段名与真实页面一致。要换成自己的数据，直接替换该文件中的课程条目即可。
 
-当前共 **21 个测试**，`.\gradlew.bat testDebugUnitTest` 全部通过。
+另外三个测试文件：
+
+| 文件 | 覆盖内容 |
+| --- | --- |
+| `CourseVisualsTest.kt` | 课程配色（相邻槽位距离/色相）、G/F 座 3、4 节提前、其余楼栋不受影响、侧栏与时刻线随 G/F 座切换 |
+| `UpdateAndSchoolTest.kt` | 沈工大域名识别与反例、检查更新的版本比较、atom feed 解析与实体还原 |
+| `NextClassTest.kt` | 「下一节课」推导：正在上课、当天已上完顺延、跨周次与假期、G/F 座提前时间与外校来源、展示文案 |
+
+当前共 **67 个测试**，`.\gradlew.bat testDebugUnitTest` 全部通过。
 
 ### 安装到设备
 
@@ -362,7 +376,64 @@ atom 解析不出任何版本时才退回 API。
 
 ---
 
-## 九、发布与签名
+## 九、Smartspacer 集成
+
+把「下一节课」提供给 [Smartspacer](https://github.com/KieronQuinn/Smartspacer)，这样桌面/锁屏的
+「一览」里可以直接显示下一节课的名称、时间和教室，点一下打开 App。
+
+### 怎么用
+
+1. 安装 [Smartspacer](https://github.com/KieronQuinn/Smartspacer/releases)（需要 **Android 10+**）；
+2. 在 Smartspacer 里添加 Target，选 **「下一节课」**；
+3. 需要先把课表链接配好并同步过一次 —— Target 读的是本地缓存的课表。
+
+### 实现
+
+| 文件 | 作用 |
+| --- | --- |
+| `smartspacer/NextClassTarget.kt` | Target 本体（`SmartspacerTargetProvider`，实际是 ContentProvider） |
+| `smartspacer/NextClassUpdateReceiver.kt` | 接收定时刷新广播，回头通知 Smartspacer 重新取内容 |
+| `domain/NextClass.kt` | `Timetable.nextOccurrence()` 推导下一节 + 副标题文案 |
+
+要点：
+
+- 用 `TargetTemplate.Basic`（标题=课程名，副标题=时间与教室，图标=学士帽，点击=打开 App）；
+- 显示**绝对时间**（`今天 第3-4节 10:15 · F-105`）而不是"还有几分钟"：Smartspace 的刷新
+  既不及时也不保证，绝对时间不会因为刷新延迟而显示错误；正在上课时改成
+  `正在上课 · 至 11:50 · F-105`；
+- 内容**每次取用时按当前时间现算**，所以拿到的一定是最新的课表缓存；
+- G/F 座的提前作息同样生效（复用 `Course.effectiveStartAt` 与沈工大域名校验）；
+- 数据来自 `TimetableRepository.timetableForDisplay()`：优先内存、其次磁盘缓存，
+  不依赖 DataStore（ContentProvider 拿不到挂起上下文）。
+
+### minSdk 的处理（重要）
+
+Smartspacer 插件 SDK 的 AAR 声明了 **minSdk 29**，而本应用是 **26**，清单合并会直接失败。
+这里用 `tools:overrideLibrary` 覆盖，保留 Android 8/9 用户，理由：
+
+- Smartspacer 本体也要求 **API 29+**，所以在 8/9 上装不上，插件根本不会被调用；
+- SDK 中我们用到的那条链路（`BaseProvider` → `SmartspacerTargetProvider`）只依赖
+  `ContentProvider` / `Bundle` / `Icon` 等 API 26 就有的东西；真正需要 29 的
+  （如 `AnalogClock` 用到的 `BlendMode`）本工程不触碰；
+- **已知风险**：manifest 里声明的 provider 会在**每次应用启动时被系统实例化**，
+  而我没有 Android 8/9 真机可以验证。这里只保证类能被加载（`onCreate` 直接返回 true），
+  没有 29+ 才有的调用。如果你有 8/9 设备，值得实测一次。
+
+### R8 混淆
+
+`proguard-rules.pro` 里保留了整个 SDK：
+
+```
+-keep class com.kieronquinn.app.smartspacer.sdk.** { *; }
+```
+
+因为 Target 是通过 Binder 把 Parcelable 模型跨进程交给 Smartspacer 的，
+**对方用自己的类副本按类名反序列化** —— 类名一旦被混淆，Target 就会失效。
+已在 release APK 里核对 SDK 类名确实未被混淆。
+
+---
+
+## 十、发布与签名
 
 > **⚠️ 发布密钥是有意公开的。** 仓库根目录的 `wakeup-release.jks` 及其口令写在
 > [`SIGNING.md`](SIGNING.md) 里，任何访问本仓库的人都能拿到。这意味着**任何持有它的人都可以
@@ -441,7 +512,7 @@ apksigner verify --print-certs app/build/outputs/apk/release/app-release.apk
 
 ---
 
-## 十、说明
+## 十一、说明
 
 - 课表数据来自教务系统，具体课程请遵循所在学院实际安排。
 - 代码与文档里**不含任何真实课表 token**：示例值统一是占位的 `100000`。
@@ -449,3 +520,5 @@ apksigner verify --print-certs app/build/outputs/apk/release/app-release.apk
   不会打进 APK。
 - `ui/schedule/SchedulePreview.kt` 里的预览数据同样是虚构的，只服务于 Android Studio 预览。
 - `network_security_config.xml` 允许用户证书（部分校园网需要安装学校根证书）。
+- 第三方库：[Smartspacer 插件 SDK](https://github.com/KieronQuinn/Smartspacer)（Apache 2.0，
+  仅用其 SDK，不涉及 Smartspacer 本体的 GPL 代码）。

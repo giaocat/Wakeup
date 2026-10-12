@@ -5,6 +5,18 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!--
+      Smartspacer 插件 SDK 的 AAR 声明了 minSdk 29，而本应用是 26。
+      用 tools:overrideLibrary 覆盖掉这个检查，保留 Android 8/9 用户：
+        * Smartspacer 本体也要求 API 29+，所以在 8/9 上根本装不上，插件不会被调用；
+        * SDK 里我们用到的那条链路（BaseProvider / SmartspacerTargetProvider）只依赖
+          ContentProvider、Bundle、Icon 这些 API 26 就有的东西；真正需要 29 的是
+          AnalogClock 用到的 BlendMode 等类，本工程不触碰。
+      风险：provider 会在**每次应用启动时被系统实例化**，而我没有 Android 8/9 真机可验证。
+      这里只是让类能被加载（onCreate 直接返回 true），没有 29+ 才有的调用。
+    -->
+    <uses-sdk tools:overrideLibrary="com.kieronquinn.app.smartspacer.sdk,com.kieronquinn.app.smartspacer.sdk.plugin" />
+
     <application
         android:name=".WakeupApplication"
         android:allowBackup="true"
@@ -37,6 +49,30 @@
                 <data android:scheme="wakeup" />
             </intent-filter>
         </activity>
+
+        <!--
+          Smartspacer Target：把"下一节课"提供给桌面/锁屏的「一览」。
+          action 与 permission 是 Smartspacer 规定的，缺一不可；必须 exported。
+        -->
+        <provider
+            android:name=".smartspacer.NextClassTarget"
+            android:authorities="${applicationId}.target.nextclass"
+            android:exported="true"
+            android:permission="com.kieronquinn.app.smartspacer.permission.ACCESS_SMARTSPACER_TARGETS">
+            <intent-filter>
+                <action android:name="com.kieronquinn.app.smartspacer.TARGET" />
+            </intent-filter>
+        </provider>
+
+        <!-- 接收 Smartspacer 的定时刷新请求（对应 Config.refreshPeriodMinutes） -->
+        <receiver
+            android:name=".smartspacer.NextClassUpdateReceiver"
+            android:exported="true"
+            android:permission="com.kieronquinn.app.smartspacer.permission.SEND_UPDATE_BROADCAST">
+            <intent-filter>
+                <action android:name="com.kieronquinn.app.smartspacer.REQUEST_TARGET_UPDATE" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

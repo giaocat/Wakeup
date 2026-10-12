@@ -52,6 +52,19 @@ data class Course(
     /** 结束节次的标准时间（不含偏移）。 */
     val standardEndAt: java.time.LocalTime? get() = PeriodTimes.endOf(endPeriod)
 
+    /**
+     * 本课程**实际生效**的上课时间：按来源学校与教室决定用不用 G/F 座的提前作息。
+     *
+     * 这是"显示时间"的唯一入口，课表格子、"今日"页面与 Smartspacer 的 Target 都用它，
+     * 避免各处各写一遍判断而出现不一致。
+     */
+    fun effectiveStartAt(timetable: Timetable): java.time.LocalTime? =
+        if (usesGfSchedule(timetable)) startAtWithGf else standardStartAt
+
+    /** 本课程**实际生效**的下课时间，规则同 [effectiveStartAt]。 */
+    fun effectiveEndAt(timetable: Timetable): java.time.LocalTime? =
+        if (usesGfSchedule(timetable)) endAtWithGf else standardEndAt
+
     fun isActiveIn(week: Int): Boolean = week in weeks
     /** 用于冲突检测：同一格内的课程会被合并展示。 */
     val cellKey: String get() = "${dayOfWeek}_$startPeriod"

@@ -45,6 +45,29 @@ class TimetableRepository(
 
     fun cachedTimetable(): Timetable? = cached
 
+    /**
+     * 立刻给出一份可用课表：优先内存缓存，其次磁盘缓存。
+     *
+     * 供 **ContentProvider**（Smartspacer 的 Target）这类拿不到挂起上下文、
+     * 也不在主线程的场景使用。磁盘缓存里自带 `sourceUrl`，所以这里不需要读设置，
+     * 也就不必等待 DataStore 的 Flow。缓存文件只有几十 KB，同步读取可以接受。
+     */
+    fun timetableForDisplay(): Timetable? {
+        cached?.let { return it }
+        val store = cache ?: return null
+        val stored = store.loadNow() ?: return null
+        val response = stored.toResponseOrNull() ?: return null
+        val domain = runCatching {
+            TimetableMapper.toDomain(response, sourceUrl = stored.sourceUrl)
+        }.getOrNull() ?: return null
+        cached = domain
+        cachedPayload = stored.payload
+        cachedSourceUrl = stored.sourceUrl
+        lastSyncedAt = stored.syncedAt
+        usingCache = true
+        return domain
+    }
+
     /** 当前展示的是否来自本地缓存（而非本次网络同步）。 */
     fun isUsingCache(): Boolean = usingCache
 

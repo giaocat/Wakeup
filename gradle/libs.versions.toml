@@ -20,6 +20,11 @@ retrofit = "3.0.0"
 okhttp = "5.2.1"
 kotlinxSerialization = "1.9.0"
 kotlinxCoroutines = "1.10.2"
+# Smartspacer 插件 SDK（Apache 2.0）。1.1 是 Maven Central 上 sdk-plugin 的最新版。
+# 注意：SDK 的 AAR 声明 minSdk 29，而本项目 minSdk 26，
+# 所以 AndroidManifest.xml 里用 tools:overrideLibrary 覆盖（那里有详细说明）。
+# AAR 的 minCompileSdk=1，不限制我们锁定的 compileSdk 36。
+smartspacer = "1.1"
 junit = "4.13.2"
 androidxJunit = "1.3.0"
 espresso = "3.7.0"
@@ -54,6 +59,9 @@ okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhtt
 okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
+
+# Smartspacer（桌面「一览」小组件）插件 SDK：把「下一节课」作为 Target 暴露出去
+smartspacer-sdk-plugin = { group = "com.kieronquinn.smartspacer", name = "sdk-plugin", version.ref = "smartspacer" }
 
 # Test
 junit = { group = "junit", name = "junit", version.ref = "junit" }

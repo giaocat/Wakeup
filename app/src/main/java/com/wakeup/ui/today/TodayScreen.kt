@@ -44,6 +44,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.wakeup.domain.Course
 import com.wakeup.domain.PeriodTimes
+import com.wakeup.domain.Timetable
 import com.wakeup.ui.ScheduleUiState
 import com.wakeup.ui.theme.courseColorFor
 import com.wakeup.util.TimeUtils
@@ -173,9 +174,9 @@ fun TodayScreen(
                 items(courses, key = { "${it.courseId}-${it.startPeriod}-${it.dayOfWeek}" }) { course ->
                     TodayCourseCard(
                         course = course,
-                        isSutSource = state.timetable.isSutSource,
-                        isNow = course.isHappeningAt(now, state.timetable.isSutSource),
-                        isPast = course.hasFinishedBy(now, state.timetable.isSutSource),
+                        timetable = state.timetable,
+                        isNow = course.isHappeningAt(now, state.timetable),
+                        isPast = course.hasFinishedBy(now, state.timetable),
                         onClick = { onCourseClick(course) },
                     )
                 }
@@ -185,19 +186,17 @@ fun TodayScreen(
     }
 }
 
-private fun Course.isHappeningAt(time: LocalTime, isSutSource: Boolean): Boolean {
-    // 用本课程自己的上课时间：GF 座（仅沈工大）3、4 节比标准作息提前 10 分钟
-    val gf = isSutSource && looksLikeGfBuilding
-    val start = if (gf) startAtWithGf else standardStartAt
-    val end = if (gf) endAtWithGf else standardEndAt
-    if (start == null || end == null) return false
+// 时间统一走 Course.effectiveStartAt/effectiveEndAt：那是一处唯一定义，
+// G/F 座（仅沈工大）的提前作息与 Smartspacer 的 Target 共用同一判断。
+private fun Course.isHappeningAt(time: LocalTime, timetable: Timetable): Boolean {
+    val start = effectiveStartAt(timetable) ?: return false
+    val end = effectiveEndAt(timetable) ?: return false
     return !time.isBefore(start) && !time.isAfter(end)
 }
 
-private fun Course.hasFinishedBy(time: LocalTime, isSutSource: Boolean): Boolean {
-    val gf = isSutSource && looksLikeGfBuilding
-    val end = if (gf) endAtWithGf else standardEndAt
-    return end != null && time.isAfter(end)
+private fun Course.hasFinishedBy(time: LocalTime, timetable: Timetable): Boolean {
+    val end = effectiveEndAt(timetable) ?: return false
+    return time.isAfter(end)
 }
 
 @Composable
@@ -237,17 +236,16 @@ private fun WeekBanner(
 @Composable
 private fun TodayCourseCard(
     course: Course,
-    isSutSource: Boolean,
+    timetable: Timetable,
     isNow: Boolean,
     isPast: Boolean,
     onClick: () -> Unit,
 ) {
     val accent = courseColorFor(course.courseId)
     val alpha = if (isPast) 0.55f else 1f
-    // 按本课程教室的作息显示（GF 座仅在沈工大课表上提前 10 分钟）
-    val gf = isSutSource && course.looksLikeGfBuilding
-    val start = if (gf) course.startAtWithGf else course.standardStartAt
-    val end = if (gf) course.endAtWithGf else course.standardEndAt
+    // 按本课程实际生效的作息显示（G/F 座仅在沈工大课表上提前 10 分钟）
+    val start = course.effectiveStartAt(timetable)
+    val end = course.effectiveEndAt(timetable)
 
     Surface(
         onClick = onClick,
