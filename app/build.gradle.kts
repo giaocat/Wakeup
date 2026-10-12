@@ -71,9 +71,14 @@ android {
         releaseKeystorePassword != null &&
         releaseKeystoreFile.exists()
 
-    // CI 上必须用固定密钥：否则每次 runner 都会生成新的调试密钥，
-    // 证书随之变化，用户无法覆盖安装 —— 这种情况直接让构建失败，不要静默产出。
-    val isCi = !System.getenv("CI").isNullOrBlank()
+    // 是否强制要求固定密钥。由发布流程显式传入：
+    //   ./gradlew assembleRelease -PrequireSigning=true
+    // 不用 "CI 环境变量 + assembleRelease" 之类的推断 —— 构建脚本在配置阶段拿不到
+    // 任务图，无法判断这次到底是不是在打 release，误判会把 assembleDebug 一起干掉。
+    val requireSigning = providers.gradleProperty("requireSigning")
+        .map { it.equals("true", ignoreCase = true) }
+        .orElse(false)
+        .get()
 
     signingConfigs {
         if (hasReleaseSigning) {
@@ -92,22 +97,12 @@ android {
             versionNameSuffix = "-debug"
         }
         release {
-            // 固定发布密钥（signingConfigs 已在上方配置好）
+            // 固定发布密钥（signingConfigs 已在上方配置好）。
+            // 缺密钥时的处理放在文件末尾的 afterEvaluate —— android { } 的 lambda
+            // 是立即求值的，写在这里会连 assembleDebug 一起干掉。
             signingConfig = if (hasReleaseSigning) {
                 signingConfigs.getByName("release")
-            } else if (isCi) {
-                // CI 上必须用固定密钥：否则每次 runner 都会生成新的调试密钥，
-                // 证书随之变化，用户无法覆盖安装 —— 直接失败，不要静默产出。
-                throw GradleException(
-                    "CI 构建缺少签名密钥：请配置 KEYSTORE_BASE64 / KEYSTORE_PASSWORD / " +
-                        "KEY_ALIAS / KEY_PASSWORD 四个 Secret。" +
-                        "否则每次 CI 都会生成新的调试密钥，用户无法覆盖安装。",
-                )
             } else {
-                logger.warn(
-                    "⚠ 未配置发布密钥，release 将使用调试密钥签名。" +
-                        "调试密钥因机器而异，产物无法覆盖安装其它签名版本的安装包，请勿分发。",
-                )
                 signingConfigs.getByName("debug")
             }
 
@@ -119,6 +114,27 @@ android {
             )
         }
     }
+
+// 缺密钥时的处理必须延迟到 afterEvaluate：android { } 里的 lambda 会**立即**求值，
+// 若把检查写在 release { } 里，连 assembleDebug 都会失败（CI 上已踩到这个坑）。
+// 而 afterEvaluate 是项目级钩子、拿不到任务图，所以用 -PrequireSigning=true 显式声明
+// 「这次构建必须用固定密钥」—— 只有发布流程会传这个参数。
+afterEvaluate {
+    if (hasReleaseSigning) {
+        // 有固定密钥，什么也不用做
+    } else if (requireSigning) {
+        throw GradleException(
+            "本次构建要求固定签名密钥，但没有找到：" +
+                "请配置 KEYSTORE_BASE64 / KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD " +
+                "四个 Secret。否则每次构建都会生成新的调试密钥，用户无法覆盖安装。",
+        )
+    } else {
+        logger.warn(
+            "⚠ 未配置发布密钥，release 将使用调试密钥签名。" +
+                "调试密钥因机器而异，产物无法覆盖安装其它签名版本的安装包，请勿分发。",
+        )
+    }
+}
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

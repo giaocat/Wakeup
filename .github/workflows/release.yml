@@ -57,7 +57,8 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew assembleRelease --stacktrace
+        # -PrequireSigning=true：本次构建必须用固定密钥，缺了直接失败
+        run: ./gradlew assembleRelease -PrequireSigning=true --stacktrace
 
       # 打印签名证书指纹：这是验证「签名是否稳定」的依据 ——
       # 同一个 keystore 每次构建的指纹必须完全相同。

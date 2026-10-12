@@ -366,8 +366,15 @@ CI runner 每次都是全新机器，**由 SDK 自动生成的调试密钥每次
 所以绝对不能在 CI 上用调试密钥发版。本项目因此做了两层保障：
 
 1. 提供固定密钥时，`release` 用 `signingConfigs.release` 签名；
-2. **CI 上（`CI` 环境变量存在）缺密钥时直接构建失败**，并提示要配哪些 Secret ——
-   宁可失败，也不要静默发出一个签名会变的包。
+2. 发布流程用 **`-PrequireSigning=true`** 显式声明「这次必须用固定密钥」，
+   缺密钥就直接失败。发布 workflow 另外会检查 `KEYSTORE_BASE64` 是否存在，
+   并在构建后核对产物确实是签名包、把证书指纹打进 job summary。
+
+> 为什么不用「CI 环境变量 + `assembleRelease`」来推断？因为 Gradle 在**配置阶段**
+> 拿不到任务图，无法判断这次到底是不是在打 release。把检查写在 `android { }` 的
+> `release { }` 里会**立即求值**，连 `assembleDebug` 一起干掉（这是实际踩过的坑：
+> Android CI 第一次就因此失败）；写在 `afterEvaluate` 里也不行，它是项目级钩子、
+> 与任务无关。所以改用调用方显式传参。
 
 本地开发没有密钥时只打印警告并回退调试密钥，方便直接跑 `assembleRelease`。
 
@@ -403,7 +410,7 @@ export KEYSTORE_FILE=/绝对路径/wakeup-release.jks
 export KEYSTORE_PASSWORD=...
 export KEY_ALIAS=wakeup
 export KEY_PASSWORD=...
-./gradlew assembleRelease
+./gradlew assembleRelease -PrequireSigning=true
 ```
 
 也支持 `KEYSTORE_BASE64`（构建时解码到 `app/build/release-keystore.jks`），
