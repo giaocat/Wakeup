@@ -7,6 +7,7 @@ import com.wakeup.ui.theme.CourseColorSlots
 import com.wakeup.ui.theme.courseColorHexSlots
 import com.wakeup.ui.theme.courseColorsFor
 import com.wakeup.ui.theme.hslToArgb
+import com.wakeup.util.TimeUtils
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -100,9 +101,9 @@ class CourseVisualsTest {
     @Test
     fun `同一门课颜色保持一致`() {
         val courses = listOf(
-            timetableCourse("c1", "高等数学", "GF-101"),
+            timetableCourse("c1", "高等数学", "G-101"),
             timetableCourse("c2", "大学物理", "A-101"),
-            timetableCourse("c1", "高等数学", "GF-101"), // 同一门课的不同时段
+            timetableCourse("c1", "高等数学", "G-101"), // 同一门课的不同时段
         )
         val colors = courseColorsFor(courses)
         assertEquals("只应为 2 门不同的课分配颜色", 2, colors.size)
@@ -141,16 +142,16 @@ class CourseVisualsTest {
 
     @Test
     fun `GF 座 3 和 4 节提前 10 分钟`() {
-        assertEquals(LocalTime.of(10, 15), PeriodTimes.startOf(3, "GF-101"))
-        assertEquals(LocalTime.of(11, 0), PeriodTimes.endOf(3, "GF-101"))
-        assertEquals(LocalTime.of(11, 5), PeriodTimes.startOf(4, "GF-101"))
-        assertEquals(LocalTime.of(11, 50), PeriodTimes.endOf(4, "GF-101"))
+        assertEquals(LocalTime.of(10, 15), PeriodTimes.startOf(3, "G-101"))
+        assertEquals(LocalTime.of(11, 0), PeriodTimes.endOf(3, "G-101"))
+        assertEquals(LocalTime.of(11, 5), PeriodTimes.startOf(4, "G-101"))
+        assertEquals(LocalTime.of(11, 50), PeriodTimes.endOf(4, "G-101"))
 
         // 与标准作息正好差 10 分钟
         assertEquals(
             10,
             java.time.Duration.between(
-                PeriodTimes.startOf(3, "GF-101"),
+                PeriodTimes.startOf(3, "G-101"),
                 PeriodTimes.startOf(3),
             ).toMinutes(),
         )
@@ -160,7 +161,7 @@ class CourseVisualsTest {
     fun `GF 座只影响 3 和 4 节_其余节次与标准一致`() {
         val standard = PeriodTimes.all
         for (period in standard) {
-            val gf = PeriodTimes.of(period.period, "GF-101")
+            val gf = PeriodTimes.of(period.period, "G-101")
             if (period.period == 3 || period.period == 4) {
                 assertNotEquals("第 ${period.period} 节应被调整", period, gf)
             } else {
@@ -168,24 +169,24 @@ class CourseVisualsTest {
             }
         }
         // 明确断言 1、2、5 节等没被动
-        assertEquals(LocalTime.of(8, 30), PeriodTimes.startOf(1, "GF-101"))
-        assertEquals(LocalTime.of(10, 5), PeriodTimes.endOf(2, "GF-101"))
-        assertEquals(LocalTime.of(13, 30), PeriodTimes.startOf(5, "GF-101"))
-        assertEquals(LocalTime.of(21, 15), PeriodTimes.endOf(12, "GF-101"))
+        assertEquals(LocalTime.of(8, 30), PeriodTimes.startOf(1, "G-101"))
+        assertEquals(LocalTime.of(10, 5), PeriodTimes.endOf(2, "G-101"))
+        assertEquals(LocalTime.of(13, 30), PeriodTimes.startOf(5, "G-101"))
+        assertEquals(LocalTime.of(21, 15), PeriodTimes.endOf(12, "G-101"))
     }
 
     @Test
-    fun `非 GF 教学楼完全不受影响`() {
-        // 本工程实际数据中出现过的其它楼栋，必须全部保持标准作息
+    fun `非 G F 座教学楼完全不受影响`() {
+        // 只有 G 座、F 座提前；其它楼栋必须保持标准作息
         val otherLocations = listOf(
-            "F-105", "F-304", "B-109", "B-202", "C-101", "C-303", "C-401",
-            "A-101", "D-105", "E-201", "H-301", "G-101", "F-207", "A-407",
+            "A-101", "B-109", "B-202", "C-101", "C-303", "C-401",
+            "D-105", "E-201", "H-301",
             null, "", "   ", "无教室",
         )
         for (location in otherLocations) {
             assertFalse(
-                "「$location」不应被识别为 GF 座",
-                PeriodTimes.isGfBuilding(location),
+                "「$location」不应被识别为 G/F 座",
+                PeriodTimes.isEarlyBuilding(location),
             )
             for (period in PeriodTimes.all) {
                 assertEquals(
@@ -198,27 +199,48 @@ class CourseVisualsTest {
     }
 
     @Test
-    fun `GF 前缀识别大小写与空格容错`() {
-        // 规则：去空格、忽略大小写后以 "GF" 开头（真实格式为 GF-101 / GF101）
-        assertTrue(PeriodTimes.isGfBuilding("GF-101"))
-        assertTrue(PeriodTimes.isGfBuilding("gf-101")) // 数据大小写不规范也认
-        assertTrue(PeriodTimes.isGfBuilding("Gf-202"))
-        assertTrue(PeriodTimes.isGfBuilding("  GF-303  "))
-        assertTrue(PeriodTimes.isGfBuilding("GF"))
-        assertTrue(PeriodTimes.isGfBuilding("GFA-101")) // 以 GF 开头，按前缀规则命中
-        // 这些不是 GF 座
-        assertFalse(PeriodTimes.isGfBuilding("G-101"))
-        assertFalse(PeriodTimes.isGfBuilding("F-101"))
-        assertFalse(PeriodTimes.isGfBuilding("AGF-101")) // 不是以 GF 开头
-        assertFalse(PeriodTimes.isGfBuilding("FG-101"))
-        assertFalse(PeriodTimes.isGfBuilding(null))
-        assertFalse(PeriodTimes.isGfBuilding(""))
-        assertFalse(PeriodTimes.isGfBuilding("   "))
+    fun `G 座与 F 座识别_大小写与空格容错`() {
+        // 真实教室名形如 G-101 / F-105
+        assertTrue(PeriodTimes.isEarlyBuilding("G-101"))
+        assertTrue(PeriodTimes.isEarlyBuilding("F-105"))
+        assertTrue(PeriodTimes.isEarlyBuilding("g-101"))
+        assertTrue(PeriodTimes.isEarlyBuilding("f-105"))
+        assertTrue(PeriodTimes.isEarlyBuilding("  G-303  "))
+        assertTrue(PeriodTimes.isEarlyBuilding("G"))
+        assertTrue(PeriodTimes.isEarlyBuilding("F"))
+        // 没写分隔符也认
+        assertTrue(PeriodTimes.isEarlyBuilding("G101"))
+        assertTrue(PeriodTimes.isEarlyBuilding("F207"))
+        // 关键回归：其它楼栋不受影响
+        assertFalse(PeriodTimes.isEarlyBuilding("A-101"))
+        assertFalse(PeriodTimes.isEarlyBuilding("B-109"))
+        assertFalse(PeriodTimes.isEarlyBuilding("C-303"))
+        assertFalse(PeriodTimes.isEarlyBuilding("D-105"))
+        assertFalse(PeriodTimes.isEarlyBuilding("E-201"))
+        assertFalse(PeriodTimes.isEarlyBuilding("H-301"))
+        assertFalse(PeriodTimes.isEarlyBuilding(null))
+        assertFalse(PeriodTimes.isEarlyBuilding(""))
+        assertFalse(PeriodTimes.isEarlyBuilding("   "))
+        // 旧名与新名一致
+        assertEquals(PeriodTimes.isEarlyBuilding("F-105"), PeriodTimes.isGfBuilding("F-105"))
+    }
+
+    @Test
+    fun `G 座和 F 座的 3 4 节都提前 10 分钟`() {
+        for (location in listOf("G-101", "F-105", "g-202", "F404")) {
+            assertEquals("$location 第 3 节开始", LocalTime.of(10, 15), PeriodTimes.startOf(3, location))
+            assertEquals("$location 第 3 节结束", LocalTime.of(11, 0), PeriodTimes.endOf(3, location))
+            assertEquals("$location 第 4 节开始", LocalTime.of(11, 5), PeriodTimes.startOf(4, location))
+            assertEquals("$location 第 4 节结束", LocalTime.of(11, 50), PeriodTimes.endOf(4, location))
+        }
+        // 对照：C 座不提前
+        assertEquals(LocalTime.of(10, 25), PeriodTimes.startOf(3, "C-303"))
+        assertEquals(LocalTime.of(11, 15), PeriodTimes.startOf(4, "C-303"))
     }
 
     @Test
     fun `课程的起止时间按自己的教室计算`() {
-        val gfCourse = course("c1", "工程训练", "GF-204", startPeriod = 3, endPeriod = 4)
+        val gfCourse = course("c1", "工程训练", "F-204", startPeriod = 3, endPeriod = 4)
         assertEquals(LocalTime.of(10, 15), gfCourse.startAtWithGf)
         assertEquals(LocalTime.of(11, 50), gfCourse.endAtWithGf)
         // 标准时间仍是原值，二者相差 10 分钟
@@ -229,11 +251,11 @@ class CourseVisualsTest {
             java.time.Duration.between(gfCourse.startAtWithGf, gfCourse.standardStartAt).toMinutes(),
         )
 
-        val normalCourse = course("c2", "高等数学", "F-105", startPeriod = 3, endPeriod = 4)
+        val normalCourse = course("c2", "高等数学", "C-303", startPeriod = 3, endPeriod = 4)
         assertEquals(LocalTime.of(10, 25), normalCourse.startAtWithGf)
         assertEquals(LocalTime.of(12, 0), normalCourse.endAtWithGf)
 
-        // 同一节次，GF 座比普通教室早 10 分钟
+        // 同一节次，G/F 座比普通教室早 10 分钟
         assertEquals(
             10,
             java.time.Duration.between(gfCourse.startAtWithGf, normalCourse.startAtWithGf).toMinutes(),
@@ -241,12 +263,41 @@ class CourseVisualsTest {
     }
 
     @Test
-    fun `differsFromStandard 只在 GF 座的 3 和 4 节为真`() {
-        assertTrue(PeriodTimes.differsFromStandard(3, "GF-101"))
-        assertTrue(PeriodTimes.differsFromStandard(4, "GF-101"))
-        assertFalse(PeriodTimes.differsFromStandard(1, "GF-101"))
-        assertFalse(PeriodTimes.differsFromStandard(5, "GF-101"))
-        assertFalse(PeriodTimes.differsFromStandard(3, "F-101"))
+    fun `当周有 G F 座的课时_侧栏与时刻线都用提前后的作息`() {
+        val gCourse = course("c1", "工程训练", "G-101", startPeriod = 3, endPeriod = 4)
+        val cCourse = course("c2", "高等数学", "C-303", startPeriod = 1, endPeriod = 2)
+
+        // 没有 G/F 座课程时：等于标准作息
+        val without = TimeUtils.effectivePeriods(listOf(cCourse))
+        assertEquals(LocalTime.of(10, 25), without.first { it.period == 3 }.start)
+
+        // 有 G/F 座课程时：3、4 节换成提前 10 分钟
+        val with = TimeUtils.effectivePeriods(listOf(cCourse, gCourse))
+        assertEquals(LocalTime.of(10, 15), with.first { it.period == 3 }.start)
+        assertEquals(LocalTime.of(11, 0), with.first { it.period == 3 }.end)
+        assertEquals(LocalTime.of(11, 5), with.first { it.period == 4 }.start)
+        assertEquals(LocalTime.of(11, 50), with.first { it.period == 4 }.end)
+        // 其它节次不受影响
+        assertEquals(LocalTime.of(8, 30), with.first { it.period == 1 }.start)
+        assertEquals(LocalTime.of(13, 30), with.first { it.period == 5 }.start)
+
+        // 时刻线：10:20 在提前作息下已经属于第 3 节，标准作息下还在第 2、3 节之间的空档
+        val earlyOffset = TimeUtils.gridOffsetFor(LocalTime.of(10, 20), with)
+        val standardOffset = TimeUtils.gridOffsetFor(LocalTime.of(10, 20), without)
+        assertTrue(
+            "提前作息下时刻线应更靠下（提前=$earlyOffset，标准=$standardOffset）",
+            earlyOffset > standardOffset,
+        )
+        assertTrue("应落在第 3 节内", earlyOffset >= 2f && earlyOffset < 3f)
+    }
+
+    @Test
+    fun `differsFromStandard 只在 G F 座的 3 和 4 节为真`() {
+        assertTrue(PeriodTimes.differsFromStandard(3, "G-101"))
+        assertTrue(PeriodTimes.differsFromStandard(4, "F-105"))
+        assertFalse(PeriodTimes.differsFromStandard(1, "G-101"))
+        assertFalse(PeriodTimes.differsFromStandard(5, "F-105"))
+        assertFalse(PeriodTimes.differsFromStandard(3, "C-101"))
         assertFalse(PeriodTimes.differsFromStandard(4, "A-101"))
         assertFalse(PeriodTimes.differsFromStandard(3, null))
     }

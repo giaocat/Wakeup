@@ -92,7 +92,7 @@ fun CourseDetailSheet(
                         ))
                     }
                     if (isGfShifted) {
-                        append("\nGF 座（沈工大）：3、4 节提前 10 分钟上下课")
+                        append("\nG 座 / F 座（沈工大）：3、4 节提前 10 分钟上下课")
                     }
                 },
             )

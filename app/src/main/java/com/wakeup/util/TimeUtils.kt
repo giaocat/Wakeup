@@ -1,5 +1,7 @@
 package com.wakeup.util
 
+import com.wakeup.domain.Course
+import com.wakeup.domain.PeriodTime
 import com.wakeup.domain.PeriodTimes
 import java.time.Instant
 import java.time.LocalDate
@@ -54,9 +56,14 @@ object TimeUtils {
      * 时刻线在课表网格中的纵向位置（单位：节次高度）。
      *
      * 返回浮点值表示"第几节位置"，例如 2.5 表示第 2 节与第 3 节之间。
+     *
+     * [periods] 是**当周实际生效**的作息。不能固定用标准作息：G 座 / F 座
+     * 的 3、4 节提前 10 分钟，用标准时间算出来的时刻线会偏离格子里的课。
      */
-    fun gridOffsetFor(time: LocalTime): Float {
-        val periods = PeriodTimes.all
+    fun gridOffsetFor(
+        time: LocalTime,
+        periods: List<PeriodTime> = PeriodTimes.all,
+    ): Float {
         if (periods.isEmpty()) return 0f
         val minutes = minuteOfDay(time)
 
@@ -83,6 +90,23 @@ object TimeUtils {
         }
         return periods.size.toFloat()
     }
+
+    /**
+     * 某一周实际生效的作息。
+     *
+     * 以标准作息为基准，只要该周有使用提前作息的课（G 座 / F 座的 3、4 节），
+     * 就把对应节次换成提前后的时间，使侧栏时间与格子内容一致。
+     */
+    fun effectivePeriods(courses: List<Course>): List<PeriodTime> =
+        PeriodTimes.all.map { standard ->
+            val early = courses
+                .asSequence()
+                .filter { it.isEarlyBuilding }
+                .mapNotNull { PeriodTimes.of(standard.period, it.location) }
+                .filter { it != standard }
+                .minByOrNull { it.start }
+            early ?: standard
+        }
 
     private val WEEKDAY_LABELS = listOf("一", "二", "三", "四", "五", "六", "日")
 }

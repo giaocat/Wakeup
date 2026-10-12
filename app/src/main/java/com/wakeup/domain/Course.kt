@@ -25,28 +25,31 @@ data class Course(
 
     val teacherOrUnknown: String get() = teacher.ifBlank { "未安排" }
 
-    /** 教室名是否像 GF 座（只看名字，不看学校）。 */
-    val looksLikeGfBuilding: Boolean get() = PeriodTimes.isGfBuilding(location)
+    /** 教室是否属于 G 座 / F 座（这两栋楼的 3、4 节提前 10 分钟）。 */
+    val isEarlyBuilding: Boolean get() = PeriodTimes.isEarlyBuilding(location)
+
+    /** 旧名，等价于 [isEarlyBuilding]。 */
+    val looksLikeGfBuilding: Boolean get() = isEarlyBuilding
 
     /**
-     * 本课程的节次是否按 GF 座作息（3、4 节提前 10 分钟）。
+     * 本课程的节次是否按 G/F 座的提前作息（3、4 节提前 10 分钟）。
      *
-     * GF 座是**沈阳工业大学**的楼，所以除了教室名匹配，还要求数据来源是沈工大域名
-     * （见 [Timetable.isSutSource]）。其它学校的课表即使教室名以 GF 开头也不会被改时间。
+     * G/F 座是**沈阳工业大学**的楼，所以除了教室名匹配，还要求数据来源是沈工大域名
+     * （见 [Timetable.isSutSource]）。其它学校的课表即使教室名以 G/F 开头也不会被改时间。
      */
     fun usesGfSchedule(timetable: Timetable): Boolean =
-        timetable.isSutSource && looksLikeGfBuilding
+        timetable.isSutSource && isEarlyBuilding
 
-    /** 起始节次时间（[isGfBuilding] 为真时含 GF 偏移）。 */
+    /** 起始节次时间（G/F 座含提前偏移）。 */
     val startAtWithGf: java.time.LocalTime? get() = PeriodTimes.startOf(startPeriod, location)
 
-    /** 结束节次时间（[isGfBuilding] 为真时含 GF 偏移）。 */
+    /** 结束节次时间（G/F 座含提前偏移）。 */
     val endAtWithGf: java.time.LocalTime? get() = PeriodTimes.endOf(endPeriod, location)
 
-    /** 起始节次的标准时间（不含 GF 偏移）。 */
+    /** 起始节次的标准时间（不含偏移）。 */
     val standardStartAt: java.time.LocalTime? get() = PeriodTimes.startOf(startPeriod)
 
-    /** 结束节次的标准时间（不含 GF 偏移）。 */
+    /** 结束节次的标准时间（不含偏移）。 */
     val standardEndAt: java.time.LocalTime? get() = PeriodTimes.endOf(endPeriod)
 
     fun isActiveIn(week: Int): Boolean = week in weeks

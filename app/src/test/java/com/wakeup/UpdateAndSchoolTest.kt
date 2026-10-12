@@ -65,7 +65,7 @@ class UpdateAndSchoolTest {
     @Test
     fun `只有沈工大课表上的 GF 教室才用 GF 作息`() {
         val gfSlot = Course(
-            courseId = "c1", name = "工程训练", teacher = "老师", location = "GF-204",
+            courseId = "c1", name = "工程训练", teacher = "老师", location = "F-204",
             dayOfWeek = 1, startPeriod = 3, endPeriod = 4, weeks = setOf(1),
         )
         val gfCourse = TimetableCourse("c1", "工程训练", "老师", listOf(gfSlot))
@@ -88,7 +88,7 @@ class UpdateAndSchoolTest {
     @Test
     fun `非 GF 教室在任何学校都不用 GF 作息`() {
         val slot = Course(
-            courseId = "c2", name = "高等数学", teacher = "老师", location = "F-105",
+            courseId = "c2", name = "高等数学", teacher = "老师", location = "C-105",
             dayOfWeek = 1, startPeriod = 3, endPeriod = 4, weeks = setOf(1),
         )
         val timetable = Timetable(

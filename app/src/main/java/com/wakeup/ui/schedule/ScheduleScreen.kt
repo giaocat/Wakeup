@@ -357,11 +357,16 @@ private fun TimetableGrid(
     val isCurrentWeekShown = timetable.term.weekOf(today) == week
     val todayIndex = if (isCurrentWeekShown) todayDayOfWeek - 1 else -1
 
-    var nowOffset by remember { mutableFloatStateOf(TimeUtils.gridOffsetFor(TimeUtils.currentTime())) }
-    LaunchedEffect(Unit) {
+    // 当周实际生效的作息：有 G/F 座的课时，3、4 节是提前 10 分钟的
+    val effectivePeriods = remember(cells) { TimeUtils.effectivePeriods(cells.values.flatten()) }
+
+    var nowOffset by remember(effectivePeriods) {
+        mutableFloatStateOf(TimeUtils.gridOffsetFor(TimeUtils.currentTime(), effectivePeriods))
+    }
+    LaunchedEffect(effectivePeriods) {
         while (true) {
             kotlinx.coroutines.delay(60_000)
-            nowOffset = TimeUtils.gridOffsetFor(TimeUtils.currentTime())
+            nowOffset = TimeUtils.gridOffsetFor(TimeUtils.currentTime(), effectivePeriods)
         }
     }
 
@@ -423,7 +428,7 @@ private fun TimetableGrid(
                         .width(GridPeriodColumnWidth)
                         .verticalScroll(verticalScroll),
                 ) {
-                    PeriodTimes.all.forEach { period ->
+                    effectivePeriods.forEach { period ->
                         PeriodLabel(period = period)
                     }
                 }

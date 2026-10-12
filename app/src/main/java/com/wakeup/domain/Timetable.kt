@@ -115,10 +115,19 @@ object PeriodTimes {
 
     private val byPeriod: Map<Int, PeriodTime> = all.associateBy { it.period }
 
-    /** GF 座的教学楼代码前缀（如 `GF-101`）。 */
+    /**
+     * 需要提前 10 分钟上下课的教学楼前缀。
+     *
+     * 沈工大是 **G 座和 F 座**（教室名形如 `G-101`、`F-105`），**不是字面量 `GF`**。
+     * 早期版本按 `GF` 前缀匹配，一个教室都命中不了，表现为"GF 座时间没变"。
+     */
+    val EARLY_BUILDING_PREFIXES: List<String> = listOf("G", "F")
+
+    /** @Deprecated 旧名，仅保留避免外部引用断裂；请用 [EARLY_BUILDING_PREFIXES]。 */
+    @Deprecated("改用 EARLY_BUILDING_PREFIXES（G 座或 F 座）")
     const val GF_BUILDING_PREFIX: String = "GF"
 
-    /** GF 座在 3、4 节提前 10 分钟上下课。 */
+    /** G 座 / F 座在 3、4 节提前 10 分钟上下课。 */
     private val gfTimes: Map<Int, PeriodTime> = mapOf(
         3 to PeriodTime(3, LocalTime.of(10, 15), LocalTime.of(11, 0)),
         4 to PeriodTime(4, LocalTime.of(11, 5), LocalTime.of(11, 50)),
@@ -130,9 +139,9 @@ object PeriodTimes {
 
     fun endOf(period: Int): LocalTime? = byPeriod[period]?.end
 
-    /** 某个教室的上课时间；除 GF 座的 3、4 节外与标准作息一致。 */
+    /** 某个教室的上课时间；除 G/F 座的 3、4 节外与标准作息一致。 */
     fun of(period: Int, location: String?): PeriodTime? {
-        if (isGfBuilding(location)) gfTimes[period]?.let { return it }
+        if (isEarlyBuilding(location)) gfTimes[period]?.let { return it }
         return byPeriod[period]
     }
 
@@ -140,8 +149,19 @@ object PeriodTimes {
 
     fun endOf(period: Int, location: String?): LocalTime? = of(period, location)?.end
 
-    fun isGfBuilding(location: String?): Boolean =
-        location?.trim()?.uppercase()?.startsWith(GF_BUILDING_PREFIX) == true
+    /**
+     * 教室是否属于 G 座或 F 座。
+     *
+     * 教室名去空格、忽略大小写后以 `G` 或 `F` 开头即命中（`G-101`、`F-105`、`G101`）。
+     */
+    fun isEarlyBuilding(location: String?): Boolean {
+        val name = location?.trim()?.uppercase().orEmpty()
+        if (name.isEmpty()) return false
+        return EARLY_BUILDING_PREFIXES.any { name.startsWith(it) }
+    }
+
+    /** 旧名，等价于 [isEarlyBuilding]。 */
+    fun isGfBuilding(location: String?): Boolean = isEarlyBuilding(location)
 
     /** 该教室在指定节次是否与标准作息不同。 */
     fun differsFromStandard(period: Int, location: String?): Boolean =
