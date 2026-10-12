@@ -263,32 +263,48 @@ class CourseVisualsTest {
     }
 
     @Test
-    fun `当周有 G F 座的课时_侧栏与时刻线都用提前后的作息`() {
-        val gCourse = course("c1", "工程训练", "G-101", startPeriod = 3, endPeriod = 4)
-        val cCourse = course("c2", "高等数学", "C-303", startPeriod = 1, endPeriod = 2)
-
-        // 没有 G/F 座课程时：等于标准作息
-        val without = TimeUtils.effectivePeriods(listOf(cCourse))
-        assertEquals(LocalTime.of(10, 25), without.first { it.period == 3 }.start)
-
-        // 有 G/F 座课程时：3、4 节换成提前 10 分钟
-        val with = TimeUtils.effectivePeriods(listOf(cCourse, gCourse))
-        assertEquals(LocalTime.of(10, 15), with.first { it.period == 3 }.start)
-        assertEquals(LocalTime.of(11, 0), with.first { it.period == 3 }.end)
-        assertEquals(LocalTime.of(11, 5), with.first { it.period == 4 }.start)
-        assertEquals(LocalTime.of(11, 50), with.first { it.period == 4 }.end)
-        // 其它节次不受影响
-        assertEquals(LocalTime.of(8, 30), with.first { it.period == 1 }.start)
-        assertEquals(LocalTime.of(13, 30), with.first { it.period == 5 }.start)
-
-        // 时刻线：10:20 在提前作息下已经属于第 3 节，标准作息下还在第 2、3 节之间的空档
-        val earlyOffset = TimeUtils.gridOffsetFor(LocalTime.of(10, 20), with)
-        val standardOffset = TimeUtils.gridOffsetFor(LocalTime.of(10, 20), without)
-        assertTrue(
-            "提前作息下时刻线应更靠下（提前=$earlyOffset，标准=$standardOffset）",
-            earlyOffset > standardOffset,
+    fun `左侧时间轴与官网作息逐条一致`() {
+        // 来源：教务处「作息时间」页 https://jwzx.sut.edu.cn/index/zxsj.htm
+        val official = listOf(
+            1 to (LocalTime.of(8, 30) to LocalTime.of(9, 15)),
+            2 to (LocalTime.of(9, 20) to LocalTime.of(10, 5)),
+            3 to (LocalTime.of(10, 25) to LocalTime.of(11, 10)),
+            4 to (LocalTime.of(11, 15) to LocalTime.of(12, 0)),
+            5 to (LocalTime.of(13, 30) to LocalTime.of(14, 15)),
+            6 to (LocalTime.of(14, 20) to LocalTime.of(15, 5)),
+            7 to (LocalTime.of(15, 25) to LocalTime.of(16, 10)),
+            8 to (LocalTime.of(16, 15) to LocalTime.of(17, 0)),
+            9 to (LocalTime.of(18, 0) to LocalTime.of(18, 45)),
+            10 to (LocalTime.of(18, 50) to LocalTime.of(19, 35)),
+            11 to (LocalTime.of(19, 40) to LocalTime.of(20, 25)),
         )
-        assertTrue("应落在第 3 节内", earlyOffset >= 2f && earlyOffset < 3f)
+        for ((period, times) in official) {
+            assertEquals("第 $period 节开始时间", times.first, PeriodTimes.startOf(period))
+            assertEquals("第 $period 节结束时间", times.second, PeriodTimes.endOf(period))
+        }
+        // 官网只列到第 11 节；课表数据里会出现第 12 节，时间按 45 分钟顺延推算
+        assertEquals(LocalTime.of(20, 30), PeriodTimes.startOf(12))
+        assertEquals(LocalTime.of(21, 15), PeriodTimes.endOf(12))
+        assertEquals((1..12).toList(), PeriodTimes.all.map { it.period })
+    }
+
+    @Test
+    fun `左侧时间轴不随课程变化_只有格子内部标提前`() {
+        // 回归：曾经按"当周有 G/F 座课程"去改轴上的时间，结果轴跟着某门课走，
+        // 和右侧大多数课程对不上。轴必须固定为官方作息。
+        val gCourse = course("c1", "工程训练", "F-105", startPeriod = 3, endPeriod = 4)
+
+        // 轴：官方时间，与课程无关
+        assertEquals(LocalTime.of(10, 25), PeriodTimes.startOf(3))
+        assertEquals(LocalTime.of(11, 15), PeriodTimes.startOf(4))
+        // 格子：G/F 座仍然提前
+        assertEquals(LocalTime.of(10, 15), gCourse.startAtWithGf)
+        assertEquals(LocalTime.of(11, 50), gCourse.endAtWithGf)
+        assertEquals(LocalTime.of(11, 5), PeriodTimes.startOf(4, "F-105"))
+
+        // 时刻线也按官方轴：10:20 落在 10:05~10:25 的空档里，位于第 2 节之后
+        val offset = TimeUtils.gridOffsetFor(LocalTime.of(10, 20))
+        assertTrue("10:20 应落在第 2 节之后、第 3 节之前（实际 $offset）", offset > 1f && offset < 2f)
     }
 
     @Test

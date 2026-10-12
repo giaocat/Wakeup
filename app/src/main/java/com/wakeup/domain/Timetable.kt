@@ -94,6 +94,23 @@ fun isSutDomain(sourceUrl: String?): Boolean {
 
 /**
  * 沈阳工业大学作息时间表（每两节为一个大节）。
+ *
+ * 时间取自教务处官网 <https://jwzx.sut.edu.cn/index/zxsj.htm>（「作息时间」页），
+ * 第 1–11 节与官网**逐条一致**：
+ *
+ * ```
+ * 第一节 08:30~09:15   第二节 09:20~10:05
+ * 第三节 10:25~11:10   第四节 11:15~12:00
+ * 第五节 13:30~14:15   第六节 14:20~15:05
+ * 第七节 15:25~16:10   第八节 16:15~17:00
+ * 第九节 18:00~18:45   第十节 18:50~19:35
+ * 第十一节 19:40~20:25
+ * ```
+ *
+ * **第 12 节**：官网只列到第 11 节，但课表数据里确实会出现第 12 节
+ * （`KCSJ` 形如 `11112`、`KCSJMX` 形如 `["111","112"]`），所以这里保留第 12 节，
+ * 按每节 45 分钟顺延推算为 20:30~21:15 —— 这一条属于**推算值，不是官网数据**。
+ *
  * 仅用于展示课程起止时间，不影响课表数据本身。
  */
 object PeriodTimes {
@@ -139,7 +156,7 @@ object PeriodTimes {
 
     fun endOf(period: Int): LocalTime? = byPeriod[period]?.end
 
-    /** 某个教室的上课时间；除 G/F 座的 3、4 节外与标准作息一致。 */
+    /** 某个教室的上课时间；除 G/F 座的 3、4 节外与官方作息一致。 */
     fun of(period: Int, location: String?): PeriodTime? {
         if (isEarlyBuilding(location)) gfTimes[period]?.let { return it }
         return byPeriod[period]
