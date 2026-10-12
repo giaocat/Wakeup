@@ -321,7 +321,7 @@ adb install -r app\build\outputs\apk\debug\app-debug.apk
 
 应用启动时会自动查一次 GitHub Releases，发现新版本就弹窗提示；设置页也有「检查更新」入口。
 
-- 数据源：`https://api.github.com/repos/Koneko-sakana/Wakeup/releases/latest`（仓库地址在 `app/build.gradle.kts` 的
+- 数据源：`https://api.github.com/repos/giaocat/Wakeup/releases/latest`（仓库地址在 `app/build.gradle.kts` 的
   `buildConfigField` 里配置：`GITHUB_REPO` / `RELEASES_API_URL` / `RELEASES_PAGE_URL`）；
 - 版本比较见 `VersionCompare`：按 `major.minor.patch` 逐段比，段数不同时缺的段按 0；
   带 `-beta1` 之类后缀的视为**预发布**，同号下低于正式版（所以 `pre-release` 不会推给用户，代码里也直接跳过

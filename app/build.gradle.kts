@@ -23,16 +23,16 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // 「检查更新」用的仓库信息：读取 GitHub Releases 判断是否有新版本
-        buildConfigField("String", "GITHUB_REPO", "\"Koneko-sakana/Wakeup\"")
+        buildConfigField("String", "GITHUB_REPO", "\"giaocat/Wakeup\"")
         buildConfigField(
             "String",
             "RELEASES_API_URL",
-            "\"https://api.github.com/repos/Koneko-sakana/Wakeup/releases/latest\"",
+            "\"https://api.github.com/repos/giaocat/Wakeup/releases/latest\"",
         )
         buildConfigField(
             "String",
             "RELEASES_PAGE_URL",
-            "\"https://github.com/Koneko-sakana/Wakeup/releases\"",
+            "\"https://github.com/giaocat/Wakeup/releases\"",
         )
     }
 
