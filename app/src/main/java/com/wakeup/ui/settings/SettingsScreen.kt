@@ -57,6 +57,7 @@ import com.wakeup.data.remote.WakeupApiFactory
 import com.wakeup.data.repository.ThemeMode
 import com.wakeup.data.repository.UserSettings
 import com.wakeup.ui.ScheduleUiState
+import com.wakeup.ui.components.UpdateRow
 import com.wakeup.util.TimeUtils
 
 @OptIn(
@@ -75,6 +76,11 @@ fun SettingsScreen(
     onHideUnscheduledChange: (Boolean) -> Unit,
     onRefresh: () -> Unit,
     onClearCache: () -> Unit,
+    onOpenRelease: (String) -> Unit,
+    updateChecking: Boolean = false,
+    updateError: String? = null,
+    latestVersion: String? = null,
+    onCheckUpdate: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var urlDraft by rememberSaveable(settings.timetableUrl) { mutableStateOf(settings.timetableUrl) }
@@ -270,7 +276,18 @@ fun SettingsScreen(
                 onCheckedChange = onHideUnscheduledChange,
             )
 
-            // ---- 版本 ----
+            // ---- 版本与更新 ----
+            SectionTitle("版本")
+
+            UpdateRow(
+                currentVersion = BuildConfig.VERSION_NAME,
+                latestVersion = latestVersion,
+                checking = updateChecking,
+                error = updateError,
+                onCheck = onCheckUpdate,
+                onOpenRelease = onOpenRelease,
+            )
+
             Text(
                 text = "Wakeup 课表 v${BuildConfig.VERSION_NAME}",
                 style = MaterialTheme.typography.labelSmall,

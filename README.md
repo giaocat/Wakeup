@@ -263,7 +263,7 @@ adb install -r app\build\outputs\apk\debug\app-debug.apk
 
 ## 六、作息时间
 
-`PeriodTimes` 里的时间为展示用的默认值（第 1 节 08:30 起，每两节为一个大节）：
+`PeriodTimes.all` 是**标准作息**（第 1 节 08:30 起，每两节为一个大节）：
 
 | 节次 | 时间 | 节次 | 时间 |
 | --- | --- | --- | --- |
@@ -271,11 +271,70 @@ adb install -r app\build\outputs\apk\debug\app-debug.apk
 | 3–4 | 10:25–12:00 | 9–10 | 18:00–19:35 |
 | 5–6 | 13:30–15:05 | 11–12 | 19:40–21:15 |
 
-如与学院实际安排不一致，改 `domain/Timetable.kt` 里的 `PeriodTimes.all` 即可。
+### GF 座 3、4 节提前 10 分钟
+
+**沈工大 GF 座**的教学楼在上第 3、4 节时提前 10 分钟上下课：
+
+| 节次 | 标准作息 | GF 座 |
+| --- | --- | --- |
+| 3 | 10:25–11:10 | **10:15–11:00** |
+| 4 | 11:15–12:00 | **11:05–11:50** |
+
+规则**只对 GF 座生效**，且必须同时满足两个条件：
+
+1. **课表来源是沈工大域名** —— host 为 `sut.edu.cn` 或 `*.sut.edu.cn`（如 `sutjwt.sut.edu.cn`）；
+2. **教室名以 `GF` 开头**（去空格、忽略大小写，如 `GF-101`、`GF204`）。
+
+其余教学楼（`F-105`、`B-109`、`C-101`…）以及 3、4 节之外的节次都保持标准时间。
+**别的学校的课表即使有间教室叫 `GF-xxx` 也不会被改时间** —— 域名不匹配。
+
+实现要点：
+
+- `isSutDomain(url)` 判断来源域名；`Timetable.sourceUrl` 由数据层写入（联网时取实际请求地址，读缓存时取缓存里记录的地址）；
+- `Course.usesGfSchedule(timetable)` = 沈工大域名 **且** 教室名匹配；
+- `Course.startAtWithGf` / `endAtWithGf` 是含 GF 偏移的时间，`standardStartAt` / `standardEndAt` 是不含偏移的标准时间；
+  **课表格子、"今日"页面、课程详情**都按来源学校 + 教室选择用哪一个，所以「正在上课」的判断对 GF 座的课也是准确的；
+- GF 座的课在格子上会标出「提前 10:15」，详情面板也会注明。
+
+改作息只需动 `domain/Timetable.kt` 里的 `PeriodTimes.all`（标准）与 `gfTimes`（GF 座）。
+
+相关校验见 `app/src/test/java/com/wakeup/UpdateAndSchoolTest.kt` 与 `CourseVisualsTest.kt`：
+覆盖 GF 座 3、4 节偏移、其余节次不受影响、其它楼栋不受影响、前缀识别容错、
+**外校域名不触发 GF 作息**、沈工大域名识别（含 `notsut.edu.cn`、`evil.com/?u=…` 等反例）。
 
 ---
 
-## 七、说明
+## 七、课程配色
+
+课程颜色取自 `ui/theme/Color.kt` 的 `CourseColorSlots`（7 个色相 × 4 档明暗 = 28 个槽位）。
+槽位**按档位交错排列**，且颜色**按课表顺序分配**（`courseColorsFor`），
+因此相邻课程一定落在不同色相组，不会出现"挨着的两门课颜色几乎一样"。
+格子额外带一圈同色系描边，进一步拉开相邻色块的边界。
+
+配色输出为 ARGB 十六进制后再构造 `Color`（而非直接 `Color.hsl`），
+这样在纯 JVM 单元测试里也能校验 —— 测试会断言
+「相邻槽位 RGB 距离 > 64」「相邻槽位色相相差 ≥ 25°」「28 个槽位互不重复」。
+
+---
+
+## 八、检查更新
+
+应用启动时会自动查一次 GitHub Releases，发现新版本就弹窗提示；设置页也有「检查更新」入口。
+
+- 数据源：`https://api.github.com/repos/Koneko-sakana/Wakeup/releases/latest`（仓库地址在 `app/build.gradle.kts` 的
+  `buildConfigField` 里配置：`GITHUB_REPO` / `RELEASES_API_URL` / `RELEASES_PAGE_URL`）；
+- 版本比较见 `VersionCompare`：按 `major.minor.patch` 逐段比，段数不同时缺的段按 0；
+  带 `-beta1` 之类后缀的视为**预发布**，同号下低于正式版（所以 `pre-release` 不会推给用户，代码里也直接跳过
+  `prerelease`/`draft`）；
+- 采取「提示 + 打开发布页」的方式，**不做应用内下载安装** —— 后者需要 `REQUEST_INSTALL_PACKAGES` 权限，
+  也会被系统的未知来源限制拦住。因此应用不需要任何新权限。
+
+相关校验见 `UpdateAndSchoolTest.kt`：版本号解析（含 `v` 前缀、`-beta`、`+build`、非法输入）、
+新版本判定、预发布语义、以及比较结果不受整型溢出影响。
+
+---
+
+## 九、说明
 
 - 课表数据来自教务系统，具体课程请遵循所在学院实际安排。
 - 代码与文档里**不含任何真实课表 token**：示例值统一是占位的 `100000`。

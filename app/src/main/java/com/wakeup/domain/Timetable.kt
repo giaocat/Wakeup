@@ -76,6 +76,23 @@ data class PeriodTime(
 }
 
 /**
+ * 判断课表来源地址是否属于沈阳工业大学。
+ *
+ * GF 座作息是沈工大特有的，只有来源域名是沈工大才生效，
+ * 避免其它学校的同名教室被误改上课时间。
+ */
+fun isSutDomain(sourceUrl: String?): Boolean {
+    val url = sourceUrl?.trim()?.lowercase().orEmpty()
+    if (url.isEmpty()) return false
+    // 去掉协议，只留 host(/path)
+    val host = url.substringAfter("://", url).substringBefore('/')
+    return host == "sut.edu.cn" ||
+        host.endsWith(".sut.edu.cn") ||
+        host == "sut.edu.cn:443" ||
+        host.startsWith("sut.edu.cn:")
+}
+
+/**
  * 沈阳工业大学作息时间表（每两节为一个大节）。
  * 仅用于展示课程起止时间，不影响课表数据本身。
  */
@@ -98,11 +115,37 @@ object PeriodTimes {
 
     private val byPeriod: Map<Int, PeriodTime> = all.associateBy { it.period }
 
+    /** GF 座的教学楼代码前缀（如 `GF-101`）。 */
+    const val GF_BUILDING_PREFIX: String = "GF"
+
+    /** GF 座在 3、4 节提前 10 分钟上下课。 */
+    private val gfTimes: Map<Int, PeriodTime> = mapOf(
+        3 to PeriodTime(3, LocalTime.of(10, 15), LocalTime.of(11, 0)),
+        4 to PeriodTime(4, LocalTime.of(11, 5), LocalTime.of(11, 50)),
+    )
+
     fun of(period: Int): PeriodTime? = byPeriod[period]
 
     fun startOf(period: Int): LocalTime? = byPeriod[period]?.start
 
     fun endOf(period: Int): LocalTime? = byPeriod[period]?.end
+
+    /** 某个教室的上课时间；除 GF 座的 3、4 节外与标准作息一致。 */
+    fun of(period: Int, location: String?): PeriodTime? {
+        if (isGfBuilding(location)) gfTimes[period]?.let { return it }
+        return byPeriod[period]
+    }
+
+    fun startOf(period: Int, location: String?): LocalTime? = of(period, location)?.start
+
+    fun endOf(period: Int, location: String?): LocalTime? = of(period, location)?.end
+
+    fun isGfBuilding(location: String?): Boolean =
+        location?.trim()?.uppercase()?.startsWith(GF_BUILDING_PREFIX) == true
+
+    /** 该教室在指定节次是否与标准作息不同。 */
+    fun differsFromStandard(period: Int, location: String?): Boolean =
+        of(period, location) != byPeriod[period]
 
     /** 当前时间处于第几节（不在任何一节课内时返回最接近的节次）。 */
     fun periodAt(time: LocalTime): Int? {

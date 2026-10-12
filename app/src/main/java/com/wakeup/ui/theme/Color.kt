@@ -8,6 +8,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import com.wakeup.domain.TimetableCourse
 import android.os.Build
 
 /**
@@ -83,20 +84,86 @@ fun wakeupColorScheme(darkTheme: Boolean, dynamicColor: Boolean): ColorScheme {
     return if (darkTheme) DarkColors else LightColors
 }
 
-/** 课程格子的配色（与周次状态无关，仅用于区分不同课程）。 */
-val CoursePalette: List<Color> = listOf(
-    Color(0xFF7C4DFF),
-    Color(0xFFE53935),
-    Color(0xFFD81B60),
-    Color(0xFF3949AB),
-    Color(0xFF00897B),
-    Color(0xFFF4511E),
-    Color(0xFFF9A825),
-    Color(0xFF00838F),
+/** 色相组：7 个色相，相邻相差约 51°，保证任意相邻两组都能分辨。 */
+internal val CourseHues: List<Float> = listOf(0f, 51f, 103f, 154f, 206f, 257f, 309f)
+
+/** 每档的 (饱和度, 亮度)，从深到浅。 */
+internal val CourseTones: List<Pair<Float, Float>> = listOf(
+    0.72f to 0.34f, // 深：白字清晰
+    0.78f to 0.46f, // 中
+    0.82f to 0.58f, // 浅
+    0.70f to 0.66f, // 更浅：深色主题下不与背景糊在一起
 )
 
-fun courseColorFor(courseId: String): Color {
-    if (courseId.isEmpty()) return CoursePalette.first()
-    val hash = courseId.fold(0) { acc, char -> (acc * 31 + char.code) and 0x7FFFFFFF }
-    return CoursePalette[hash % CoursePalette.size]
+/**
+ * 课程格子配色的十六进制槽位，共 7×4 = 28 个。
+ *
+ * 槽位顺序**按档位交错**：[色相0·深, 色相1·深, …, 色相6·深, 色相0·中, …]，
+ * 因此按下标依次取用时，相邻课程永远来自不同色相组 —— 课表里挨着的两门课
+ * 颜色一定明显不同（分配逻辑见 [courseColorsFor]）。
+ *
+ * 这里输出 ARGB 十六进制而非直接 `Color.hsl(...)`，是为了让配色在纯 JVM
+ * 单元测试里也能校验（`Color.hsl` 依赖 Android 运行时的 `android.graphics.Color`）。
+ */
+internal fun courseColorHexSlots(): List<Long> = buildList {
+    for ((saturation, lightness) in CourseTones) {
+        for (hue in CourseHues) add(hslToArgb(hue, saturation, lightness))
+    }
 }
+
+val CourseColorSlots: List<Color> = courseColorHexSlots().map { Color(it) }
+
+/**
+ * 按课表顺序给每门课分配颜色。
+ *
+ * 同一门课（courseId 相同）复用同一颜色；不同课按出现顺序依次取槽位。
+ * 返回 courseId -> Color。
+ */
+fun courseColorsFor(courses: List<TimetableCourse>): Map<String, Color> {
+    val slots = courseColorHexSlots()
+    val result = LinkedHashMap<String, Color>()
+    var next = 0
+    for (course in courses) {
+        if (course.courseId in result) continue
+        result[course.courseId] = Color(slots[next % slots.size])
+        next++
+    }
+    return result
+}
+
+/** 单个课程的颜色；散列定位，同一课程始终同色（不保证相邻课程不同色）。 */
+fun courseColorFor(courseId: String): Color {
+    val slots = courseColorHexSlots()
+    if (courseId.isEmpty()) return Color(slots.first())
+    var hash = 7
+    for (char in courseId) hash = (hash * 31 + char.code) and 0x7FFFFFFF
+    return Color(slots[hash % slots.size])
+}
+
+/** 深色背景下给格子加描边，进一步拉开相邻色块的边界。 */
+fun courseOutlineFor(color: Color): Color = Color(
+    red = color.red * 0.55f,
+    green = color.green * 0.55f,
+    blue = color.blue * 0.55f,
+    alpha = 1f,
+)
+
+/** HSL -> 不透明 ARGB（0xFFRRGGBB）。纯函数，便于单元测试。 */
+internal fun hslToArgb(hue: Float, saturation: Float, lightness: Float): Long {
+    val h = ((hue % 360f) + 360f) % 360f / 60f
+    val c = (1f - kotlin.math.abs(2f * lightness - 1f)) * saturation
+    val x = c * (1f - kotlin.math.abs(h % 2f - 1f))
+    val (r, g, b) = when (h.toInt()) {
+        0 -> Triple(c, x, 0f)
+        1 -> Triple(x, c, 0f)
+        2 -> Triple(0f, c, x)
+        3 -> Triple(0f, x, c)
+        4 -> Triple(x, 0f, c)
+        else -> Triple(c, 0f, x)
+    }
+    val m = lightness - c / 2f
+    fun channel(value: Float): Long =
+        (kotlin.math.round((value + m) * 255f).coerceIn(0f, 255f)).toLong()
+    return 0xFF000000L or (channel(r) shl 16) or (channel(g) shl 8) or channel(b)
+}
+

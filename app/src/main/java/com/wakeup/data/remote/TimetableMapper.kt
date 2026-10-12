@@ -15,7 +15,13 @@ object TimetableMapper {
 
     private const val MAX_PERIOD = 12
 
-    fun toDomain(response: TimetableResponse): Timetable {
+    /**
+     * 把接口 DTO 转成领域模型。
+     *
+     * [sourceUrl] 会挂到 [Timetable.sourceUrl]，用于判断学校 ——
+     * 例如 GF 座作息只在沈阳工业大学的课表上生效。
+     */
+    fun toDomain(response: TimetableResponse, sourceUrl: String = ""): Timetable {
         val table = response.table
             ?: throw IllegalStateException(response.errmsg ?: "课表数据为空")
 
@@ -32,6 +38,7 @@ object TimetableMapper {
         return Timetable(
             term = term,
             courses = courses.sortedWith(compareBy({ it.name }, { it.courseId })),
+            sourceUrl = sourceUrl,
         )
     }
 

@@ -57,6 +57,9 @@ private fun previewState(): ScheduleUiState {
         // 与上一门同一天同一节，用来展示冲突合并
         previewCourse("数据结构与算法", "子老师", "C-303", 5, 3, 4, weeks),
         previewCourse("程序设计实验", "丑老师", "C-401", 5, 11, 12, weeks),
+        // GF 座：3、4 节提前 10 分钟（10:15 开始），格子上会标出"提前"
+        previewCourse("工程训练", "壬老师", "GF-204", 2, 3, 4, weeks),
+        previewCourse("工程训练", "壬老师", "GF-204", 6, 3, 4, weeks),
     )
 
     val term = Term(

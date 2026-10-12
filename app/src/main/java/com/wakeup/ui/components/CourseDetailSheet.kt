@@ -39,10 +39,13 @@ import com.wakeup.ui.theme.courseColorFor
 @Composable
 fun CourseDetailSheet(
     course: Course,
+    isSutSource: Boolean = false,
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val color = courseColorFor(course.courseId)
+    // GF 座作息只在沈工大课表上生效
+    val isGfShifted = isSutSource && course.looksLikeGfBuilding
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -81,12 +84,15 @@ fun CourseDetailSheet(
                 label = "时间",
                 value = buildString {
                     append("周${dayLabel(course.dayOfWeek)} 第 ${course.periodLabel} 节")
-                    val start = PeriodTimes.startOf(course.startPeriod)
-                    val end = PeriodTimes.endOf(course.endPeriod)
+                    val start = course.startAtWithGf
+                    val end = course.endAtWithGf
                     if (start != null && end != null) {
                         append("（%02d:%02d-%02d:%02d）".format(
                             start.hour, start.minute, end.hour, end.minute,
                         ))
+                    }
+                    if (isGfShifted) {
+                        append("\nGF 座（沈工大）：3、4 节提前 10 分钟上下课")
                     }
                 },
             )

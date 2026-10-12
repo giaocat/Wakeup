@@ -1,5 +1,7 @@
 package com.wakeup.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -23,9 +25,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.wakeup.BuildConfig
 import com.wakeup.domain.Course
 import com.wakeup.ui.components.CourseDetailSheet
+import com.wakeup.ui.components.UpdateDialog
 import com.wakeup.ui.schedule.ScheduleScreen
 import com.wakeup.ui.settings.SettingsScreen
 import com.wakeup.ui.today.TodayScreen
@@ -47,7 +52,12 @@ fun WakeupApp(
     val schedule by viewModel.schedule.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val cacheSizeBytes by viewModel.cacheSizeBytes.collectAsStateWithLifecycle()
+    val update by viewModel.update.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+
+    // 启动时自动检查一次更新
+    LaunchedEffect(Unit) { viewModel.checkForUpdate(auto = true) }
 
     var destination by rememberSaveable { mutableStateOf(Destination.SCHEDULE) }
     var detailCourse by remember { mutableStateOf<Course?>(null) }
@@ -98,6 +108,10 @@ fun WakeupApp(
                     settings = settings,
                     state = schedule,
                     cacheSizeBytes = cacheSizeBytes,
+                    updateChecking = update.checking,
+                    updateError = update.error,
+                    latestVersion = update.info?.version,
+                    onCheckUpdate = { viewModel.checkForUpdate(auto = false) },
                     onTimetableUrlChange = viewModel::updateTimetableUrl,
                     onBaseUrlChange = viewModel::updateBaseUrl,
                     onThemeModeChange = viewModel::setThemeMode,
@@ -105,6 +119,11 @@ fun WakeupApp(
                     onHideUnscheduledChange = viewModel::setHideUnscheduled,
                     onRefresh = viewModel::sync,
                     onClearCache = viewModel::clearCache,
+                    onOpenRelease = { url ->
+                        runCatching {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                        }
+                    },
                 )
             }
         }
@@ -113,7 +132,15 @@ fun WakeupApp(
     detailCourse?.let { course ->
         CourseDetailSheet(
             course = course,
+            isSutSource = schedule.timetable.isSutSource,
             onDismiss = { detailCourse = null },
+        )
+    }
+
+    update.info?.let { info ->
+        UpdateDialog(
+            info = info,
+            onDismiss = viewModel::dismissUpdate,
         )
     }
 }

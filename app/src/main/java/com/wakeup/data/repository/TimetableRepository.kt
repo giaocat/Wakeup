@@ -73,7 +73,9 @@ class TimetableRepository(
             store.clearNow()
             return false
         }
-        val domain = runCatching { TimetableMapper.toDomain(response) }.getOrNull() ?: run {
+        val domain = runCatching {
+            TimetableMapper.toDomain(response, sourceUrl = stored.sourceUrl)
+        }.getOrNull() ?: run {
             store.clearNow()
             return false
         }
@@ -95,12 +97,12 @@ class TimetableRepository(
         }
 
         if (result is SyncResult.Success) {
+            val url = remote.urlFor(source, resolvedBase)
             val domain = try {
-                TimetableMapper.toDomain(result.response)
+                TimetableMapper.toDomain(result.response, sourceUrl = url)
             } catch (error: Exception) {
                 return SyncResult.Failure(error.message ?: "课表数据无法识别", error)
             }
-            val url = remote.urlFor(source, resolvedBase)
             val now = System.currentTimeMillis()
             cached = domain
             cachedPayload = result.rawPayload

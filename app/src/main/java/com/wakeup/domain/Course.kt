@@ -25,8 +25,31 @@ data class Course(
 
     val teacherOrUnknown: String get() = teacher.ifBlank { "未安排" }
 
-    fun isActiveIn(week: Int): Boolean = week in weeks
+    /** 教室名是否像 GF 座（只看名字，不看学校）。 */
+    val looksLikeGfBuilding: Boolean get() = PeriodTimes.isGfBuilding(location)
 
+    /**
+     * 本课程的节次是否按 GF 座作息（3、4 节提前 10 分钟）。
+     *
+     * GF 座是**沈阳工业大学**的楼，所以除了教室名匹配，还要求数据来源是沈工大域名
+     * （见 [Timetable.isSutSource]）。其它学校的课表即使教室名以 GF 开头也不会被改时间。
+     */
+    fun usesGfSchedule(timetable: Timetable): Boolean =
+        timetable.isSutSource && looksLikeGfBuilding
+
+    /** 起始节次时间（[isGfBuilding] 为真时含 GF 偏移）。 */
+    val startAtWithGf: java.time.LocalTime? get() = PeriodTimes.startOf(startPeriod, location)
+
+    /** 结束节次时间（[isGfBuilding] 为真时含 GF 偏移）。 */
+    val endAtWithGf: java.time.LocalTime? get() = PeriodTimes.endOf(endPeriod, location)
+
+    /** 起始节次的标准时间（不含 GF 偏移）。 */
+    val standardStartAt: java.time.LocalTime? get() = PeriodTimes.startOf(startPeriod)
+
+    /** 结束节次的标准时间（不含 GF 偏移）。 */
+    val standardEndAt: java.time.LocalTime? get() = PeriodTimes.endOf(endPeriod)
+
+    fun isActiveIn(week: Int): Boolean = week in weeks
     /** 用于冲突检测：同一格内的课程会被合并展示。 */
     val cellKey: String get() = "${dayOfWeek}_$startPeriod"
 }
@@ -52,7 +75,17 @@ data class TimetableCourse(
 data class Timetable(
     val term: Term,
     val courses: List<TimetableCourse>,
+    /** 课表来源地址；用来判断是哪所学校的课表（见 [isSutSource]）。 */
+    val sourceUrl: String = "",
 ) {
+    /**
+     * 数据是否来自沈阳工业大学。
+     *
+     * GF 座（3、4 节提前 10 分钟）是沈工大特有的作息，必须挂在域名上判断，
+     * 否则别的学校只要有间教室叫「GF-xxx」就会被错误地改时间。
+     */
+    val isSutSource: Boolean get() = isSutDomain(sourceUrl)
+
     /** 已排课的课程。 */
     val scheduled: List<TimetableCourse> get() = courses.filter { it.isScheduled }
 

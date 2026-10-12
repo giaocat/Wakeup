@@ -1,6 +1,7 @@
 package com.wakeup.ui.schedule
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -62,6 +63,8 @@ import com.wakeup.domain.TimetableCourse
 import com.wakeup.domain.dayLabel
 import com.wakeup.ui.ScheduleUiState
 import com.wakeup.ui.theme.courseColorFor
+import com.wakeup.ui.theme.courseColorsFor
+import com.wakeup.ui.theme.courseOutlineFor
 import com.wakeup.util.TimeUtils
 import java.time.LocalDate
 
@@ -213,14 +216,6 @@ private fun CompactHeader(
             .padding(start = 0.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = onPreviousWeek) {
-            Icon(
-                imageVector = Icons.Outlined.ChevronLeft,
-                contentDescription = "上一周",
-                modifier = Modifier.size(22.dp),
-            )
-        }
-
         Column(modifier = Modifier.weight(1f)) {
             val termName = state.timetable.term.name
             val title = buildString {
@@ -248,6 +243,15 @@ private fun CompactHeader(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+        }
+
+        // 切换上下周的两个按钮紧贴周次选择器两侧
+        IconButton(onClick = onPreviousWeek) {
+            Icon(
+                imageVector = Icons.Outlined.ChevronLeft,
+                contentDescription = "上一周",
+                modifier = Modifier.size(22.dp),
+            )
         }
 
         Box {
@@ -342,6 +346,10 @@ private fun TimetableGrid(
     modifier: Modifier = Modifier,
 ) {
     val cells = remember(timetable, week) { timetable.cellsOfWeek(week) }
+    // 颜色按整门课的出现顺序分配，保证相邻课程颜色不同（见 courseColorsFor）
+    val courseColors = remember(timetable) {
+        courseColorsFor(timetable.courses).mapValues { (_, color) -> color }
+    }
     val weekDates = remember(timetable, week) {
         (1..7).map { day -> timetable.term.dateOf(week, day) }
     }
@@ -429,6 +437,8 @@ private fun TimetableGrid(
                     GridContent(
                         cells = cells,
                         dayWidth = dayWidth,
+                        courseColors = courseColors,
+                        isSutSource = timetable.isSutSource,
                         onCourseClick = onCourseClick,
                         nowOffset = nowOffset,
                         showNowLine = isCurrentWeekShown,
@@ -515,6 +525,8 @@ private fun DayHeader(
 private fun GridContent(
     cells: Map<String, List<Course>>,
     dayWidth: Dp,
+    courseColors: Map<String, Color>,
+    isSutSource: Boolean,
     onCourseClick: (Course) -> Unit,
     nowOffset: Float,
     showNowLine: Boolean,
@@ -525,6 +537,7 @@ private fun GridContent(
     val stripeColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.04f)
     val lineColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
     val nowColor = MaterialTheme.colorScheme.error
+    val cellsIsSut = isSutSource
 
     Box(
         modifier = modifier.width(dayWidth * 7),
@@ -559,7 +572,8 @@ private fun GridContent(
             CourseBlock(
                 courses = group,
                 merged = group.size > 1,
-                onClick = { onCourseClick(anchor) },
+                color = courseColors[anchor.courseId],
+                isSutSource = cellsIsSut,                onClick = { onCourseClick(anchor) },
                 modifier = Modifier
                     .offset(
                         x = dayWidth * (anchor.dayOfWeek - 1) + GridCellGap,
@@ -590,21 +604,31 @@ private fun GridContent(
 private fun CourseBlock(
     courses: List<Course>,
     merged: Boolean,
+    color: Color?,
+    isSutSource: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val primary = courses.first()
-    val color = if (merged) {
+    val resolved = if (merged) {
         MaterialTheme.colorScheme.surfaceVariant
     } else {
-        courseColorFor(primary.courseId)
+        color ?: courseColorFor(primary.courseId)
     }
     val onColor = if (merged) MaterialTheme.colorScheme.onSurfaceVariant else Color.White
+    val outline = if (merged) MaterialTheme.colorScheme.outline else courseOutlineFor(resolved)
+    // GF 座是沈工大的楼：既要教室名匹配，也要课表来源是沈工大域名
+    val gfShifted = !merged &&
+        isSutSource &&
+        primary.looksLikeGfBuilding &&
+        (PeriodTimes.differsFromStandard(primary.startPeriod, primary.location) ||
+            PeriodTimes.differsFromStandard(primary.endPeriod, primary.location))
 
     Surface(
         onClick = onClick,
-        color = color,
+        color = resolved,
         shape = RoundedCornerShape(9.dp),
+        border = BorderStroke(1.dp, outline),
         modifier = modifier,
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -628,6 +652,16 @@ private fun CourseBlock(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
+                if (gfShifted) {
+                    Text(
+                        text = primary.startAtWithGf?.let { "提前 %02d:%02d".format(it.hour, it.minute) }
+                            ?: "提前 10 分钟",
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
+                        color = onColor.copy(alpha = 0.9f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
             if (merged) {
                 Surface(

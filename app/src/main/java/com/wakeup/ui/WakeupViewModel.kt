@@ -7,6 +7,9 @@ import com.wakeup.AppContainer
 import com.wakeup.data.remote.SyncResult
 import com.wakeup.data.repository.ThemeMode
 import com.wakeup.data.repository.UserSettings
+import com.wakeup.data.update.UpdateChecker
+import com.wakeup.data.update.UpdateInfo
+import com.wakeup.data.update.UpdateResult
 import com.wakeup.domain.Course
 import com.wakeup.domain.Timetable
 import com.wakeup.domain.TimetableCourse
@@ -70,10 +73,26 @@ data class ScheduleUiState(
         }
 }
 
+/** 「检查更新」的界面状态。 */
+data class UpdateUiState(
+    val checking: Boolean = false,
+    /** 发现的新版本；没有则为 null。 */
+    val info: UpdateInfo? = null,
+    /** 检查失败的原因（用于设置页提示）。 */
+    val error: String? = null,
+    /** 已经检查过（避免用户关掉弹窗后又自动弹出）。 */
+    val checked: Boolean = false,
+) {
+    val available: Boolean get() = info != null
+}
+
 /**
  * 课表 / 设置 / 主题的统一 ViewModel。
  */
-class WakeupViewModel(private val container: AppContainer) : ViewModel() {
+class WakeupViewModel(
+    private val container: AppContainer,
+    private val updateChecker: UpdateChecker = UpdateChecker(),
+) : ViewModel() {
 
     val settings: StateFlow<UserSettings> = container.settingsRepository.settings
         .stateIn(viewModelScope, SharingStarted.Eagerly, UserSettings())
@@ -84,6 +103,9 @@ class WakeupViewModel(private val container: AppContainer) : ViewModel() {
     /** 缓存占用（字节），供设置页展示。 */
     private val _cacheSizeBytes = MutableStateFlow(0L)
     val cacheSizeBytes: StateFlow<Long> = _cacheSizeBytes.asStateFlow()
+
+    private val _update = MutableStateFlow(UpdateUiState())
+    val update: StateFlow<UpdateUiState> = _update.asStateFlow()
 
     init {
         var started = false
@@ -256,6 +278,39 @@ class WakeupViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     /** 缓存占用自动跟随 `cacheRevision` 刷新，无需额外接口。 */
+
+    // ---- 检查更新 ----
+
+    /**
+     * 检查是否有新版本。
+     *
+     * [auto] 为 true 时表示是启动自动检查：只提示一次，用户关掉后不再弹出。
+     */
+    fun checkForUpdate(auto: Boolean = false) {
+        if (_update.value.checking) return
+        if (auto && _update.value.checked) return
+        _update.update { it.copy(checking = true, error = null, checked = true) }
+        viewModelScope.launch {
+            when (val result = updateChecker.check()) {
+                is UpdateResult.Available -> _update.update {
+                    it.copy(checking = false, info = result.info, error = null)
+                }
+
+                is UpdateResult.UpToDate -> _update.update {
+                    it.copy(checking = false, info = null, error = null)
+                }
+
+                is UpdateResult.Failed -> _update.update {
+                    it.copy(checking = false, info = null, error = result.message)
+                }
+            }
+        }
+    }
+
+    /** 用户关掉更新弹窗。 */
+    fun dismissUpdate() {
+        _update.update { it.copy(info = null) }
+    }
 
     companion object {
         fun factory(container: AppContainer): ViewModelProvider.Factory =

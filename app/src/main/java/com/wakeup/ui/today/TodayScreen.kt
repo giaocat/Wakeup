@@ -173,8 +173,9 @@ fun TodayScreen(
                 items(courses, key = { "${it.courseId}-${it.startPeriod}-${it.dayOfWeek}" }) { course ->
                     TodayCourseCard(
                         course = course,
-                        isNow = course.isHappeningAt(now),
-                        isPast = course.hasFinishedBy(now),
+                        isSutSource = state.timetable.isSutSource,
+                        isNow = course.isHappeningAt(now, state.timetable.isSutSource),
+                        isPast = course.hasFinishedBy(now, state.timetable.isSutSource),
                         onClick = { onCourseClick(course) },
                     )
                 }
@@ -184,15 +185,19 @@ fun TodayScreen(
     }
 }
 
-private fun Course.isHappeningAt(time: LocalTime): Boolean {
-    val start = PeriodTimes.startOf(startPeriod) ?: return false
-    val end = PeriodTimes.endOf(endPeriod) ?: return false
+private fun Course.isHappeningAt(time: LocalTime, isSutSource: Boolean): Boolean {
+    // 用本课程自己的上课时间：GF 座（仅沈工大）3、4 节比标准作息提前 10 分钟
+    val gf = isSutSource && looksLikeGfBuilding
+    val start = if (gf) startAtWithGf else standardStartAt
+    val end = if (gf) endAtWithGf else standardEndAt
+    if (start == null || end == null) return false
     return !time.isBefore(start) && !time.isAfter(end)
 }
 
-private fun Course.hasFinishedBy(time: LocalTime): Boolean {
-    val end = PeriodTimes.endOf(endPeriod) ?: return false
-    return time.isAfter(end)
+private fun Course.hasFinishedBy(time: LocalTime, isSutSource: Boolean): Boolean {
+    val gf = isSutSource && looksLikeGfBuilding
+    val end = if (gf) endAtWithGf else standardEndAt
+    return end != null && time.isAfter(end)
 }
 
 @Composable
@@ -232,14 +237,17 @@ private fun WeekBanner(
 @Composable
 private fun TodayCourseCard(
     course: Course,
+    isSutSource: Boolean,
     isNow: Boolean,
     isPast: Boolean,
     onClick: () -> Unit,
 ) {
     val accent = courseColorFor(course.courseId)
     val alpha = if (isPast) 0.55f else 1f
-    val start = PeriodTimes.startOf(course.startPeriod)
-    val end = PeriodTimes.endOf(course.endPeriod)
+    // 按本课程教室的作息显示（GF 座仅在沈工大课表上提前 10 分钟）
+    val gf = isSutSource && course.looksLikeGfBuilding
+    val start = if (gf) course.startAtWithGf else course.standardStartAt
+    val end = if (gf) course.endAtWithGf else course.standardEndAt
 
     Surface(
         onClick = onClick,
