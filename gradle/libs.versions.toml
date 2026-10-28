@@ -37,7 +37,7 @@ wearCompose = "1.6.2"
 # 手表端与手机端之间的课表同步（Wearable Data Layer）。
 # 不直接读 Android SDK 的 java.time：手机端 minSdk 已经压到 24，
 # java.time 靠 core library desugaring 提供。
-playServicesWearable = "19.0.0"
+playServicesWearable = "20.0.1"
 desugarJdkLibs = "2.1.5"
 # 手表端「表盘小组件」：表盘复杂功能（Complication）与信息块（Tile）。
 # 版本都挑 minCompileSdk <= 36 的：complications 1.3.0(34) / tiles 1.6.2(35) / protolayout 1.4.2(34)
