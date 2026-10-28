@@ -25,6 +25,22 @@ kotlinxCoroutines = "1.10.2"
 # 所以 AndroidManifest.xml 里用 tools:overrideLibrary 覆盖（那里有详细说明）。
 # AAR 的 minCompileSdk=1，不限制我们锁定的 compileSdk 36。
 smartspacer = "1.1"
+# Wear OS 版（:wear）用的是 Compose for Wear OS 3。
+# 1.7.x 的 aar-metadata 里 minCompileSdk=37，而我们锁死 compileSdk 36
+# （公开 SDK 仓库没有 android-37），所以停在 1.6.2（minCompileSdk=35）。
+wearCompose = "1.6.2"
+# 手表端与手机端之间的课表同步（Wearable Data Layer）。
+# 不直接读 Android SDK 的 java.time：手机端 minSdk 已经压到 24，
+# java.time 靠 core library desugaring 提供。
+playServicesWearable = "19.0.0"
+desugarJdkLibs = "2.1.5"
+# 手表端「表盘小组件」：表盘复杂功能（Complication）与信息块（Tile）。
+# 版本都挑 minCompileSdk <= 36 的：complications 1.3.0(34) / tiles 1.6.2(35) / protolayout 1.4.2(34)
+wearWatchfaceComplications = "1.3.0"
+wearTiles = "1.6.2"
+wearProtolayout = "1.4.2"
+# 手机端大屏 / 折叠屏适配：窗口尺寸类 + 折叠状态（FoldingFeature）。minCompileSdk=34
+androidxWindow = "1.5.1"
 junit = "4.13.2"
 androidxJunit = "1.3.0"
 espresso = "3.7.0"
@@ -46,6 +62,8 @@ androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-toolin
 androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
 androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
 androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended", version = "1.7.8" }
+# 手表端只用基础图标集（Settings / Refresh / ArrowBack 等），不需要 extended
+androidx-compose-material-icons-core = { group = "androidx.compose.material", name = "material-icons-core", version = "1.7.8" }
 
 # Material 3 Expressive (M3E) -- pinned ahead of the BOM so the expressive APIs are available
 m3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
@@ -63,6 +81,25 @@ kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 # Smartspacer（桌面「一览」小组件）插件 SDK：把「下一节课」作为 Target 暴露出去
 smartspacer-sdk-plugin = { group = "com.kieronquinn.smartspacer", name = "sdk-plugin", version.ref = "smartspacer" }
 
+# Compose for Wear OS：手表端的 Material 3 组件（:wear 用）
+wear-compose-material3 = { group = "androidx.wear.compose", name = "compose-material3", version.ref = "wearCompose" }
+wear-compose-foundation = { group = "androidx.wear.compose", name = "compose-foundation", version.ref = "wearCompose" }
+
+# 手机 ↔ 手表同步（Wearable Data Layer，GMS）
+play-services-wearable = { group = "com.google.android.gms", name = "play-services-wearable", version.ref = "playServicesWearable" }
+
+# core library desugaring：把 java.time 等 API 下放到更低 minSdk
+desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugarJdkLibs" }
+
+# 表盘复杂功能（Complication）：把「下一节课」显示在系统表盘上
+wear-watchface-complications-data-source-ktx = { group = "androidx.wear.watchface", name = "watchface-complications-data-source-ktx", version.ref = "wearWatchfaceComplications" }
+# 信息块（Tile）：从表盘往左滑就能看到今天/下一节课
+wear-tiles = { group = "androidx.wear.tiles", name = "tiles", version.ref = "wearTiles" }
+wear-protolayout = { group = "androidx.wear.protolayout", name = "protolayout", version.ref = "wearProtolayout" }
+
+# 大屏 / 折叠屏：窗口尺寸类 + 折叠姿态
+androidx-window = { group = "androidx.window", name = "window", version.ref = "androidxWindow" }
+
 # Test
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
@@ -71,5 +108,6 @@ androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-co
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

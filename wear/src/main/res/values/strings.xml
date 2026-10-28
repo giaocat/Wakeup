@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Wakeup 课表</string>
+    <!-- 表盘复杂功能（下一节课）在表盘编辑器的组件列表里显示的名字 -->
+    <string name="complication_next_class_label">下一节课</string>
+    <!-- 信息块（Tile）在信息块列表里显示的名字 -->
+    <string name="tile_timetable_label">课表</string>
+</resources>

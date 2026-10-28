@@ -16,10 +16,12 @@ android {
 
     defaultConfig {
         applicationId = "com.wakeup"
-        minSdk = 26
+        // 23 = Android 6.0：Compose 1.11（animation-core）要求的最低值就是 23，
+        // 再往下系统组件就不支持了。java.time 靠 core library desugaring 下放，见 compileOptions
+        minSdk = 23
         targetSdk = 36
-        versionCode = 6
-        versionName = "1.0.5"
+        versionCode = 9
+        versionName = "1.0.8"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -139,7 +141,9 @@ afterEvaluate {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-        isCoreLibraryDesugaringEnabled = false
+        // minSdk 21 < 26：java.time（LocalDate / ZoneId / DateTimeFormatter…）
+        // 由 desugar_jdk_libs 提供实现，否则 21–25 上会 NoClassDefFoundError
+        isCoreLibraryDesugaringEnabled = true
     }
 
     buildFeatures {
@@ -168,6 +172,18 @@ kotlin {
 }
 
 dependencies {
+    // 数据层（抓取 / 解析 / 缓存 / 作息规则），手机端与手表端共用
+    implementation(project(":core"))
+
+    // java.time 在 minSdk 21–25 上的实现
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
+
+    // 把手表需要的课表推给手表（Wearable Data Layer）
+    implementation(libs.play.services.wearable)
+
+    // 大屏 / 折叠屏：WindowSizeClass + FoldingFeature
+    implementation(libs.androidx.window)
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
@@ -186,7 +202,8 @@ dependencies {
     // Material 3 Expressive
     implementation(libs.m3)
     implementation(libs.m3.sizing)
-    implementation(libs.m3.adaptive.core)
+    // 注：m3-adaptive 没有用到，且它把 minSdk 顶到了 24，
+    // 为了把手机端压到 21 这里就不引了（需要时再加回来并同步抬 minSdk）。
 
     implementation(libs.retrofit)
     implementation(libs.retrofit.scalars)

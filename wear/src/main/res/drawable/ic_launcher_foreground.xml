@@ -1,0 +1,22 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 课表格子 -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M36,34h12v12h-12z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M50,34h22v12h-22z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M36,48h12v12h-12z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M50,48h22v12h-22z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M36,62h36v12h-36z" />
+</vector>

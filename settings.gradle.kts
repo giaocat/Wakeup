@@ -21,4 +21,10 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "Wakeup"
+
+/** 手机端（Material 3 Expressive）。 */
 include(":app")
+/** 手表端（Wear OS Compose）。 */
+include(":wear")
+/** 手机端 / 手表端共用的数据层：抓取、解析、缓存、作息规则。 */
+include(":core")

@@ -14,7 +14,9 @@ import kotlinx.coroutines.flow.first
 import com.wakeup.domain.Course
 import com.wakeup.domain.Timetable
 import com.wakeup.domain.TimetableCourse
+import com.wakeup.sync.PhoneTimetableSync
 import com.wakeup.util.TimeUtils
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -127,6 +129,31 @@ class WakeupViewModel(
                 _cacheSizeBytes.value = container.timetableRepository.cacheSizeBytes()
             }
         }
+        // 「今天」原先只在同步成功时写一次。App 常驻后台跨天之后，时刻线、今天高亮
+        // 和表头都会停在旧日期，所以这里每分钟对一次表，跨天才真正更新状态。
+        viewModelScope.launch {
+            while (true) {
+                delay(WALL_CLOCK_TICK_MS)
+                refreshToday()
+            }
+        }
+    }
+
+    /**
+     * 跨天时刷新「今天」与当前周次。
+     *
+     * 只改日期相关的两个字段，不动用户正在查看的周次；日期没变时直接返回，
+     * 避免每分钟都触发一次无意义的重组。
+     */
+    private fun refreshToday() {
+        val today = TimeUtils.today()
+        if (_schedule.value.today == today) return
+        _schedule.update { state ->
+            state.copy(
+                today = today,
+                currentWeek = state.timetable.term.weekOf(today),
+            )
+        }
     }
 
     /** 从磁盘缓存恢复上一次的课表。 */
@@ -197,6 +224,12 @@ class WakeupViewModel(
                         errorMessage = result.message,
                     )
                 }
+            }
+
+            // 同步成功后顺手把手表需要的课表推过去（Wearable Data Layer）。
+            // 没有配对的手表 / 没有 GMS 时会静默失败，绝不影响手机端本身。
+            if (result is SyncResult.Success) {
+                launch { PhoneTimetableSync.push(container.appContext) }
             }
         }
     }
@@ -333,6 +366,9 @@ class WakeupViewModel(
          * 所以自动检查一天最多一次；用户手动点「检查」不受此限制。
          */
         const val AUTO_CHECK_COOLDOWN_MS: Long = 24L * 60 * 60 * 1000
+
+        /** 对时周期：一分钟一次，够跨天及时发现，也不会明显耗电。 */
+        private const val WALL_CLOCK_TICK_MS: Long = 60_000L
         fun factory(container: AppContainer): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")

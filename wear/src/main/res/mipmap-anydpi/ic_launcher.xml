@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Legacy launcher icon for API 21-25: <adaptive-icon> is API 26+ (see
+  mipmap-anydpi-v26), so older releases get the same blue plate plus the
+  centered glyph. An inset is used instead of item gravity because gravity on
+  layer-list items only works from API 23.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/ic_launcher_background" />
+    <item>
+        <inset
+            android:drawable="@drawable/ic_launcher_foreground"
+            android:inset="18%" />
+    </item>
+</layer-list>

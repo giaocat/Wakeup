@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      手表端的基础主题：真正的配色由 Compose for Wear OS 的 MaterialTheme 接管。
+      背景用纯黑，符合手表 OLED 与常亮模式的习惯。
+    -->
+    <style name="Theme.Wakeup.Wear" parent="android:Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

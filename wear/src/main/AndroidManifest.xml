@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- 只装在手表上：手机应用商店不会把它当成手机应用 -->
+    <uses-feature
+        android:name="android.hardware.type.watch"
+        android:required="true" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Wakeup.Wear">
+
+        <!--
+          独立运行的 Wear 应用（不依赖手机端进程）：手表自己联网抓课表。
+          没有这项时系统会要求手机端配合，这里不需要。
+        -->
+        <meta-data
+            android:name="com.google.android.wearable.standalone"
+            android:value="true" />
+
+        <uses-library
+            android:name="com.google.android.wearable"
+            android:required="false" />
+
+        <activity
+            android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode"
+            android:exported="true"
+            android:theme="@style/Theme.Wakeup.Wear">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          接收手机端推来的课表（Wearable Data Layer）。
+          action/data 由 GMS 约定：pathPrefix 必须覆盖当前应用用到的路径（这里统一是 /wakeup）。
+          即使应用没在运行，系统也会把服务拉起来处理同步，所以状态栏里不需要任何提示。
+        -->
+        <service
+            android:name=".sync.WatchTimetableSyncService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
+                <!-- 兜底：DataItem 走不通时手机端还可以发 Message，两条路都指向同一个 path -->
+                <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
+                <data
+                    android:scheme="wear"
+                    android:host="*"
+                    android:pathPrefix="/wakeup" />
+            </intent-filter>
+        </service>
+
+        <!--
+          表盘复杂功能（表盘小组件）：在系统表盘上显示"下一节课"。
+          SUPPORTED_TYPES 必须和代码里支持的 ComplicationData 类型一致；
+          UPDATE_PERIOD_SECONDS 是最小刷新间隔（秒），系统会按需唤醒。
+        -->
+        <service
+            android:name=".complication.NextClassComplicationService"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/app_name"
+            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
+            <intent-filter>
+                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
+            </intent-filter>
+            <meta-data
+                android:name="android.support.wearable.complications.SUPPORTED_TYPES"
+                android:value="SHORT_TEXT,LONG_TEXT" />
+            <meta-data
+                android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
+                android:value="300" />
+        </service>
+
+        <!--
+          信息块（Tile）：从表盘往左滑能看到今天/下一节课。
+          action 与 permission 都是 Wear OS 规定的，缺一不可。
+        -->
+        <service
+            android:name=".tile.TimetableTileService"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/app_name"
+            android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
+            <intent-filter>
+                <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />
+            </intent-filter>
+        </service>
+    </application>
+
+</manifest>

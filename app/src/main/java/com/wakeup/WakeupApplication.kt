@@ -1,42 +1,21 @@
 package com.wakeup
 
 import android.app.Application
-import android.content.Context
-import com.wakeup.data.cache.TimetableCache
-import com.wakeup.data.remote.TimetableRemoteDataSource
-import com.wakeup.data.repository.SettingsRepository
-import com.wakeup.data.repository.TimetableRepository
 
 /**
- * 应用级依赖容器。
+ * 手机端 Application。
  *
- * 项目规模不大，这里用手写的 service locator 代替 DI 框架，减少构建复杂度。
+ * 依赖容器已经挪到 `:core`（见 [AppContainerHolder]），这样手表端也能复用同一份数据层，
+ * 不需要再写一个几乎一样的 Application 子类。这里只负责把容器提前建好。
  */
 class WakeupApplication : Application() {
 
-    lateinit var container: AppContainer
-        private set
+    val container: AppContainer
+        get() = appContainer
 
     override fun onCreate() {
         super.onCreate()
-        container = AppContainer(this)
+        // 提前初始化，避免首帧在主线程里建 DataStore/OkHttp
+        AppContainerHolder.get(this)
     }
 }
-
-/** 依赖容器。 */
-class AppContainer(context: Context) {
-
-    private val appContext = context.applicationContext
-
-    val settingsRepository: SettingsRepository = SettingsRepository(appContext)
-
-    val timetableRepository: TimetableRepository = TimetableRepository(
-        remote = TimetableRemoteDataSource(),
-        cache = TimetableCache(appContext),
-        onCacheChanged = { settingsRepository.notifyCacheChanged() },
-    )
-}
-
-/** 便捷取用容器。 */
-val Context.appContainer: AppContainer
-    get() = (applicationContext as WakeupApplication).container

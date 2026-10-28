@@ -4,6 +4,17 @@
 用 **Jetpack**（Compose / ViewModel / DataStore / Retrofit+OkHttp）与 **Material 3 Expressive（M3E）** 实现，
 应用包名为 `com.wakeup`。
 
+当前版本 **1.0.8**（`versionCode` 9）：手机端（`:app`）与手表端（`:wear`）同版本号，
+但**各自一个 APK**；两端共用 `:core` 数据层，手机同步成功后会自动把课表推给手表。
+手表端见[第四节](#四手表端wear-os)。
+
+界面按 **Material 3 官方设计规范**排版：底部 `NavigationBar` 三个目的地（课表 / 今日 / 设置），
+每页一个 `TopAppBar`，设置项是 `ListItem` 分组，间距走 4dp 基线、字号只用 M3 字体角色；
+大屏与折叠屏按官方窗口尺寸类自动切换侧边导航轨、双栏详情与铰链分栏（见第五节）。
+
+手表端除应用本体外，还提供**表盘小组件（复杂功能）**与**信息块（Tile）**：
+表盘上能直接看到「下一节课」，表盘左滑能看到今天与后几门课。
+
 数据来源：教务通的课表分享页，形如 `https://sutjwt.sut.edu.cn/user/kb/table/token/<token>`。
 **App 不绑定任何一份具体课表**，token 在「设置」里填写。
 
@@ -21,8 +32,18 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 - **JDK**：17 及以上（Android Studio 自带的 JBR 25 可用）
 - **Gradle**：9.6.0（由 `gradle/wrapper` 指定，首次构建自动下载）
 - **AGP**：9.4.1，**Kotlin**：2.2.10（AGP 9 自带 Kotlin 支持，无需再声明 `kotlin.android` 插件）
-- **compileSdk / targetSdk**：36，**minSdk**：26
+- **compileSdk / targetSdk**：36，**minSdk**：**23**（手机端，Android 6.0；手表端 `:wear` 为 **26**，见第四节）
 - **包名**：`com.wakeup`（debug 构建为 `com.wakeup.debug`）
+
+> **minSdk 为什么停在 23 / 26？**
+> 手机端 23 是 Compose 1.11（`animation-core`）硬性声明的下限，再往下调会在合并清单时直接失败；
+> 手表端本来能到 25（Compose for Wear OS 的下限），但**表盘复杂功能**库
+> （`androidx.wear.watchface:watchface-complications-data:1.3.0`）要求 26，
+> 而表盘小组件是核心功能，所以取 26。两端的 `java.time`
+> （`LocalDate` / `ZoneId` / `DateTimeFormatter` 等）都靠 **core library desugaring**
+> （`desugar_jdk_libs`）下放，所以低版本系统上不会 `NoClassDefFoundError`。
+> 顺带：`m3-adaptive` 没有用到，且它会把手机端 minSdk 顶到 24，因此没有引入；
+> 大屏 / 折叠屏适配是手写的 `WindowSizeClass` + `FoldingFeature`（见第五节）。
 
 > **为什么是 compileSdk 36 而不是 37？**
 > Google 公开的 SDK 仓库（`repository2-3.xml`）目前最高只提供 `platforms;android-36`，
@@ -33,13 +54,16 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 > `lifecycle 2.10.0`、`core-ktx 1.18.0`。
 > 等 android-37 进入稳定仓库后，把这些版本一起提上去即可。
 
-安装包产物：`app/build/outputs/apk/debug/app-debug.apk`
+安装包产物（debug）：
+
+- 手机端：`app/build/outputs/apk/debug/app-debug.apk`
+- 手表端：`wear/build/outputs/apk/debug/wear-debug.apk`
 
 已实测通过的构建命令：
 
 ```powershell
 .\gradlew.bat clean assembleDebug testDebugUnitTest lintDebug
-# => BUILD SUCCESSFUL，单元测试 21/21 通过，lint 0 error
+# => BUILD SUCCESSFUL，单元测试 83/83 通过，lint 0 error
 ```
 
 ### 自动构建（GitHub Actions）
@@ -55,19 +79,20 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 
 1. **先在 [`CHANGELOG.md`](CHANGELOG.md) 里写好本版段落** —— 新增一个 `## X.Y.Z`（不带 `v`，
    与 `versionName` 一致），只写用户能感知的变化；
-2. 升 `app/build.gradle.kts` 里的 `versionCode` / `versionName`；
+2. 升 `app/build.gradle.kts` **和** `wear/build.gradle.kts` 里的 `versionCode` / `versionName`
+   （两端保持同版本号）；
 3. 打标签并推送：
 
 ```bash
-git tag v1.0.6
-git push origin v1.0.6
+git tag v1.0.8
+git push origin v1.0.8
 ```
 
 > **发布说明自动取自 `CHANGELOG.md`**：`release.yml` 会按标签名切出对应的 `## X.Y.Z` 段落，
 > 作为 Release 的说明文本（找不到段落时退回「自动生成的提交列表」，不会让发布失败）。
 > 所以每次 release 都是手写好的更新日志，而不是提交标题堆砌。
 
-> 发布需要**固定签名密钥**，配置见「十、发布与签名」。缺配置时 CI 会直接失败，
+> 发布需要**固定签名密钥**，配置见「十一、发布与签名」。缺配置时 CI 会直接失败，
 > 而不是静默产出一个用临时调试密钥签名的包（那种包无法覆盖安装）。
 
 ---
@@ -125,7 +150,7 @@ git push origin v1.0.6
 | **今日** | 按时间顺序列出当天课程，正在上的那节标「正在上课」，已结束的自动淡化 |
 | **设置** | 课表链接（完整链接或 token）、服务地址、同步状态、本地缓存占用与清空、主题模式（跟随系统·浅色·深色）、动态取色、隐藏未排课课程 |
 | **课程详情** | 点击任意课程格子或今日课程卡片，弹出底部面板查看时间、地点、教师、周次 |
-| **Smartspacer** | 把「下一节课」提供给桌面/锁屏的「一览」（[详见第九节](#九smartspacer-集成)），点一下打开 App |
+| **Smartspacer** | 把「下一节课」提供给桌面/锁屏的「一览」（[详见第十节](#十smartspacer-集成)），点一下打开 App |
 
 顶部只有**一行**标题栏（`CompactHeader`）：‹ 上一周、周次标题（当前周会显示「· 本周」）、周次选择、下一周 ›、刷新。
 原先的 `TopAppBar` 与周次切换行已经合并，少占约 60 dp 纵向空间。设置入口仍在底部导航。
@@ -181,6 +206,28 @@ App 不绑定某一份课表，**任何人都可以通过「设置 → 课表链
 
 > 注意：App 本身**不再内置任何示例课表**，首次使用必须联网同步一次。
 
+### 大屏与折叠屏
+
+手机端按官方**窗口尺寸类**（`WindowSizeClass`）与**折叠姿态**（`FoldingFeature`）自适应，
+在 Activity 边界处算一次、向下传一份 `AdaptiveWindowInfo`：
+
+| 窗口 | 导航 | 课程详情 | 正文宽度 |
+| --- | --- | --- | --- |
+| Compact（手机竖屏） | 底部 `NavigationBar` | 底部面板（`ModalBottomSheet`） | 占满 |
+| Medium（小平板 / 分屏） | 侧边 `NavigationRail` | 底部面板 | 占满 |
+| Expanded（平板横屏 / 展开折叠屏） | 侧边 `NavigationRail` | **右侧常驻面板**（列表-详情双栏） | 设置 / 今日 收窄到 840dp 居中 |
+| 折叠屏·书本姿态（竖向铰链） | 侧边导航轨 | 左右分栏，宽度按铰链位置切 | 同 Expanded |
+| 折叠屏·桌面姿态（横向铰链） | 侧边导航轨 | 上下分栏：课表在上、详情在下 | 同 Expanded |
+
+要点：
+
+- 分栏位置按**铰链在窗口中的真实坐标**计算（`onGloballyPositioned` + 窗口坐标系），
+  所以即使有导航轨、顶栏、内边距，分栏线也正好压在折叠线上，内容不会画到折痕；
+  铰链没有厚度时至少留 8dp 间隙。
+- 详情内容只有一份实现（`CourseDetailContent`），底部面板与右侧面板共用，不会两处走样。
+- 当前标签页、查看的周次、选中的课程都放在 `rememberSaveable` 里：旋转、分屏、展开/合上不丢；
+  `Course` 本身不可保存，落库的是 `courseId|星期|起始节次` 键，重建后再从课表解析回来。
+
 ### 关于 M3E
 
 `ui/theme/Theme.kt` 使用 Material 3 Expressive 的 `MaterialExpressiveTheme`：
@@ -200,45 +247,202 @@ Android 12 及以上默认跟随系统动态取色，低版本回落到以校色
 
 ---
 
-## 四、工程结构
+## 四、手表端（Wear OS）
 
+同一份课表也做了 **Wear OS 手表版**，是**另一个 APK**（`:wear` 模块，`applicationId` 同样是
+`com.wakeup`）。手表端**不依赖手机端**：它自己联网抓课表、自己存一份缓存，手机不在身边也能看
+（清单里 `com.google.android.wearable.standalone = true`）。
+
+### 安装
+
+Release 里两个 APK 分开命名，手表装带 `wear` 的那个：
+
+| 文件 | 装到哪 |
+| --- | --- |
+| `wakeup-phone-<version>.apk` | 手机 |
+| `wakeup-wear-<version>.apk` | 手表 |
+
+手表只能侧载（adb，或手表「开发者选项 → 通过 WLAN 调试」）：
+
+```powershell
+.\gradlew.bat :wear:assembleDebug
+adb install -r wear\build\outputs\apk\debug\wear-debug.apk
+
+# 或者直接装 Release 包：
+adb install -r wakeup-wear-1.0.8.apk
 ```
-app/src/main/java/com/wakeup/
-├── WakeupApplication.kt          # Application + 手写依赖容器（AppContainer）
-├── MainActivity.kt               # 唯一 Activity，edge-to-edge
-├── data/
-│   ├── cache/TimetableCache.kt   # 本地磁盘缓存（原始 JSON + 来源地址 + 同步时间）
-│   ├── model/TimetableDto.kt     # 接口 JSON 的结构映射（kotlinx.serialization）
-│   ├── remote/
-│   │   ├── WakeupApi.kt          # Retrofit 接口与 OkHttp 配置
-│   │   ├── TimetablePayloadParser.kt  # 从 HTML 抽取内联 JSON
-│   │   ├── TimetableMapper.kt    # DTO → 领域模型
-│   │   └── TimetableRemoteDataSource.kt  # 链接解析 + 取数
-│   └── repository/
-│       ├── SettingsRepository.kt # DataStore 设置读写（含 token → 链接迁移）
-│       └── TimetableRepository.kt# 取数 + 内存缓存 + 本地缓存读写
-├── domain/
-│   ├── Course.kt                 # Course / TimetableCourse / Timetable
-│   ├── Timetable.kt              # WeekExpression / PeriodTimes / Term
-│   └── NextClass.kt              # 「下一节课」推导 + 展示文案（Smartspacer 的数据来源）
-├── smartspacer/
-│   ├── NextClassTarget.kt        # Smartspacer Target（ContentProvider）
-│   └── NextClassUpdateReceiver.kt# 接收 Smartspacer 的定时刷新请求
-├── ui/
-│   ├── WakeupApp.kt              # Scaffold + 底部导航
-│   ├── WakeupViewModel.kt        # 课表状态、周次切换、缓存恢复、设置项
-│   ├── schedule/ScheduleScreen.kt
-│   ├── today/TodayScreen.kt
-│   ├── settings/SettingsScreen.kt
-│   ├── components/CourseDetailSheet.kt
-│   │   └── UpdateDialog.kt       # 「发现新版本」弹窗与设置页的检查更新行
-│   └── theme/                    # Color.kt / Theme.kt
-└── util/TimeUtils.kt             # 时刻线定位、相对时间等
-```
+
+> 两端各自一个 APK、各自安装，装手表端不会替换手机端。
+
+### 要求
+
+- **手表端 API 26 及以上**（`:wear` 的 `minSdk = 26`）：表盘复杂功能库要求 26；
+  实际体验以 **Wear OS 3 / API 30** 为准。
+- **手表能联网，或与手机配对**：手表可以自己联网抓课表；配对了手机时，
+  手机每次同步成功会自动把课表推给手表（见下面「与手机端的关系」），
+  手表即使暂时没网也能显示手机同步下来的那份。
+- 手机端 `minSdk = 23`（Android 6.0）。
+
+### 第一次使用（两种，二选一）
+
+**A. 等手机推过来（推荐）**：先在手机端填好 token 并同步成功一次，手表与手机配对、装同一个签名版本的
+Wakeup 后，手表的课表会被自动写好（含 token），直接打开就能看。
+
+**B. 在手表上直接填**：
+
+1. 手表上打开 Wakeup，进入 **设置**（课程页边缘的齿轮按钮）；
+2. 点 **课表 token**，用数字键盘输入 token —— 就是课表链接
+   `https://sutjwt.sut.edu.cn/user/kb/table/token/<token>` 末尾那串数字；
+3. 点 **保存并同步**。
+
+手表上没有文本框，也不适合在表盘上敲 URL，所以只收数字 token：拼链接由 `:core` 里的
+`tokenToTimetableUrl()` 完成，两端算出来的链接完全一致。设置页还有刷新课表、选择周次、
+清空本地缓存、查看版本号。
+
+### 与手机端自动同步
+
+手机端每次同步成功后，会把课表与 token 通过 **Wearable Data Layer** 推给手表：
+
+- 路径固定为 `/wakeup/timetable`，类型是 `DataItem`（同一路径只保留最新一份）；
+- 内容是 `DataMap`：`sourceUrl`（手机上的课表链接）、`syncedAt`（手机端同步时间）、
+  `payload`（原始课表 JSON 经 **gzip + Base64** 压缩，控制在 90 KB 以内）；
+- 手表端由 `WatchTimetableSyncService`（`WearableListenerService`）接收，解析后写入本地缓存、
+  顺带采用手机的 token，再通过进程内 `TimetableSyncBus` 通知界面刷新；
+- 数据格式编解码在 `:core`（`TimetableSyncCodec`），两端共用一份实现，配了单元测试。
+
+限制（都属于预期行为）：
+
+- 需要两端**包名与签名一致**：debug 配 debug、release 配 release；
+- **手机端是 token 的权威来源**，手表上手改的 token 会被下一次手机同步覆盖；
+- 推送是「尽力而为」：`putDataItem` 返回只代表已交给系统，不保证立即送达，
+  但重复推送以最新一次为准，丢中间几次没有影响；
+- 没有配对的手表、或设备没有 GMS 时直接跳过，不影响手机端。
+
+### 手势与界面
+
+| 操作 | 结果 |
+| --- | --- |
+| 左右滑 | 前一天 / 后一天（周一…周日，底部圆点指示当前天） |
+| 点顶部周次卡片 | 打开「选择周次」（当前周标「· 本周」，选中周高亮） |
+| 点课程 | 课程详情：时间、教室、教师、周次 |
+| 系统返回滑 / 返回键 | 回到上一级；已在课程页时退出应用 |
+
+界面用 `androidx.wear.compose:compose-material3` **1.6.2**（+ `compose-foundation` 1.6.2）：
+`AppScaffold` + `ScreenScaffold` 提供顶部弧形 `TimeText` 与圆屏边缘留白，`ScalingLazyColumn`
+让内容滚到圆边时缩小而不是被裁掉，`HorizontalPager` + `HorizontalPageIndicator` 负责翻星期。
+
+> **版本为什么停在 1.6.2**：1.7.x 声明了 `minCompileSdk=37`，而本工程 `compileSdk = 36`
+> （公开 SDK 仓库没有 android-37，理由见第一节）。等 android-37 进入稳定仓库再一起提。
+
+### 表盘小组件（Complication）与信息块（Tile）
+
+手表端把自己注册成系统级的表盘数据源与信息块提供方，**不需要打开 App 就能看到课表**：
+
+| 形态 | 显示内容 | 怎么添加 |
+| --- | --- | --- |
+| 表盘复杂功能（`SHORT_TEXT`） | `10:15 高数`（时间 + 截断后的课程名） | 表盘长按 → 编辑 → 复杂功能/小组件 → 选 Wakeup「下一节课」 |
+| 表盘复杂功能（`LONG_TEXT`） | 标题 `今天`/`明天`/`周三` + `10:15 高等数学 · F-105` | 同上（选长文本槽位） |
+| 信息块（Tile） | `今天 · 周三`、`下一节 10:15 高等数学 · F-105`、当天前 3 门课 | 信息块列表 → 添加 Wakeup「课表」 |
+
+约定与细节：
+
+- 数据全部来自**本地缓存**，表盘抬腕/刷新时**不联网**（`TimetableRepository.timetableForDisplay()`），
+  避免表盘频繁唤醒时走网络；没课时显示 `无课`，从未同步时显示 `未同步`，两种情况都不返回 null
+  （否则表盘只会显示"无数据"，用户分不清是没课还是坏了）。
+- 表盘数据源声明了 `UPDATE_PERIOD_SECONDS=300`，信息块 `freshnessIntervalMillis=15min` 作为兜底；
+  每次课表真的变化（手机推送、手表自己同步、清缓存、改 token）时会主动请求刷新一次。
+- 两个服务都在清单里用 Wear 规定的 `permission` 保护：
+  `BIND_COMPLICATION_PROVIDER` / `BIND_TILE_PROVIDER`，只有系统表盘/信息块宿主能绑定。
+
+### 与手机端的关系
+
+- **课表自动同步**：手机同步成功后会把课表与 token 推给手表（Wearable Data Layer），
+  手表收到就写缓存并刷新界面；见上一小节。没有配对手机时手表自己联网抓。
+- **设置各自保存**：两端各有一份 DataStore；手机是 token 的权威来源，手表上手改的会被覆盖。
+- **缓存各自独立**：各自缓存，清掉一端的缓存不影响另一端（下次同步会再补上）。
+- **数据层共用**：抓取 / 解析 / 缓存 / 设置 / 作息规则 / 同步编解码都在 `:core`，两端行为一致
+  （包括 G/F 座 3、4 节提前 10 分钟）。
 
 ---
 
-## 五、测试
+## 五、工程结构
+
+三个 Gradle 模块（见 `settings.gradle.kts`）：
+
+| 模块 | 作用 | minSdk |
+| --- | --- | --- |
+| `:app` | 手机端，Material 3 Expressive（官方规范排版 + 大屏/折叠屏自适应） | 23 |
+| `:wear` | 手表端，Compose for Wear OS Material 3（应用 + 表盘复杂功能 + 信息块） | 26 |
+| `:core` | 两端共用的数据层：抓取 / 解析 / 缓存 / 设置 / 作息规则 / 同步编解码（Android library） | 23 |
+
+```
+app/src/main/java/com/wakeup/       # 手机端：界面与手机专属逻辑
+├── WakeupApplication.kt            # Application：提前初始化 AppContainer
+├── MainActivity.kt                 # 唯一 Activity，edge-to-edge
+├── data/update/UpdateChecker.kt    # 检查更新（仅手机端：atom / API + 版本比较）
+├── sync/PhoneTimetableSync.kt      # 同步成功后把课表推给手表（Wearable Data Layer）
+├── smartspacer/
+│   ├── NextClassTarget.kt          # Smartspacer Target（ContentProvider）
+│   └── NextClassUpdateReceiver.kt  # 接收 Smartspacer 的定时刷新请求
+└── ui/
+    ├── WakeupApp.kt                # 根 Scaffold：底部 NavigationBar / 侧边 NavigationRail + Snackbar
+    ├── adaptive/                   # 大屏 / 折叠屏：WindowSize.kt（尺寸类+折叠姿态）、FoldAwareSplit.kt（按铰链分栏）
+    ├── WakeupViewModel.kt          # 课表状态、周次切换、缓存恢复、每分钟对时
+    ├── schedule/ScheduleScreen.kt  # TopAppBar + 课表网格 + 表头月份 headerMonthLabels() + 双栏详情
+    ├── schedule/SchedulePreview.kt # @Preview（含空状态）
+    ├── today/TodayScreen.kt        # TopAppBar + 课程卡片列表（窄屏单栏 / 折叠分栏）
+    ├── settings/SettingsScreen.kt  # TopAppBar + ListItem 分组设置（大屏收窄居中）
+    ├── components/CourseDetailSheet.kt  # 课程详情：底部面板与右侧面板共用 CourseDetailContent
+    │   └── UpdateDialog.kt         # 「发现新版本」弹窗与设置页的检查更新行
+    └── theme/                      # Color.kt / Theme.kt
+
+core/src/main/java/com/wakeup/      # 手机端 / 手表端共用
+├── AppContainer.kt                 # 手写依赖容器 + AppContainerHolder
+├── data/
+│   ├── cache/TimetableCache.kt     # 本地磁盘缓存（原始 JSON + 来源地址 + 同步时间）
+│   ├── model/TimetableDto.kt       # 接口 JSON 的结构映射（kotlinx.serialization）
+│   ├── remote/
+│   │   ├── WakeupApi.kt            # Retrofit 接口与 OkHttp 配置
+│   │   ├── TimetablePayloadParser.kt    # 从 HTML 抽取内联 JSON
+│   │   ├── TimetableMapper.kt      # DTO → 领域模型
+│   │   └── TimetableRemoteDataSource.kt # 链接解析 + 取数
+│   └── repository/
+│       ├── SettingsRepository.kt   # DataStore 设置读写（含 token → 链接迁移）
+│       └── TimetableRepository.kt  # 取数 + 内存缓存 + 本地缓存读写（含采纳手机同步来的课表）
+├── domain/
+│   ├── Course.kt                   # Course / TimetableCourse / Timetable
+│   ├── Timetable.kt                # WeekExpression / PeriodTimes / Term
+│   └── NextClass.kt                # 「下一节课」推导 + 展示文案（Smartspacer 的数据来源）
+├── sync/
+│   ├── TimetableSyncPaths.kt       # Data Layer 路径与 DataMap key
+│   ├── TimetableSyncCodec.kt       # 课表 JSON ↔ gzip+Base64（带大小上限，两端共用）
+│   └── TimetableSyncBus.kt         # 进程内「收到同步」通知
+└── util/TimeUtils.kt               # 时刻线定位、相对时间等
+
+wear/src/main/java/com/wakeup/wear/ # 手表端
+├── MainActivity.kt                 # 唯一入口（没有导航库，状态切屏）
+├── WearViewModel.kt                # 周次 / 星期 / 课程状态，复用 :core 数据层
+├── sync/WatchTimetableSyncService.kt  # 接收手机推来的课表（WearableListenerService）
+├── complication/NextClassComplicationService.kt  # 表盘复杂功能：下一节课 + 刷新请求
+├── tile/TimetableTileService.kt    # 信息块（Tile）：今天 / 下一节 / 当天课程
+├── tile/TileRefresher.kt           # 课表变化后请求系统刷新信息块
+└── ui/
+    ├── WearApp.kt                  # AppScaffold + 状态切屏
+    ├── DayScreen.kt                # 课程页：HorizontalPager 翻星期
+    ├── WeekScreen.kt               # 选择周次
+    ├── SettingsScreen.kt           # 刷新 / 选周次 / token / 清缓存 / 版本
+    ├── TokenScreen.kt              # 数字键盘填 token
+    ├── CourseDetailScreen.kt       # 课程详情
+    ├── WearFormat.kt               # 日期、时刻、周次范围的格式化
+    └── theme/WearTheme.kt          # 手表配色（不用动态取色）
+```
+
+> `:core` 里的包名仍是 `com.wakeup.data.* / domain.* / util.* / sync.*`，所以从 `:app` 拆出来时上层的
+> import 一行都没改。检查更新（`UpdateChecker`）留在 `:app`：手表端不做更新检查，只在设置页显示版本号。
+
+---
+
+## 六、测试
 
 ```powershell
 .\gradlew.bat testDebugUnitTest
@@ -260,15 +464,17 @@ app/src/main/java/com/wakeup/
 示例数据里的课程、教师、学生（甲/乙/丙… 老师、测试同学）全部是虚构的，
 字段名与真实页面一致。要换成自己的数据，直接替换该文件中的课程条目即可。
 
-另外三个测试文件：
+另外五个测试文件：
 
 | 文件 | 覆盖内容 |
 | --- | --- |
 | `CourseVisualsTest.kt` | 课程配色（相邻槽位距离/色相）、G/F 座 3、4 节提前、其余楼栋不受影响、侧栏与时刻线随 G/F 座切换 |
 | `UpdateAndSchoolTest.kt` | 沈工大域名识别与反例、检查更新的版本比较、atom feed 解析与实体还原 |
 | `NextClassTest.kt` | 「下一节课」推导：正在上课、当天已上完顺延、跨周次与假期、G/F 座提前时间与外校来源、展示文案 |
+| `ScheduleHeaderTest.kt` | 表头月份标签：跟随展示中的周次、跨月显示两个月、跨年顺序（12 月在前）、空输入 |
+| `sync/TimetableSyncCodecTest.kt` | 手机→手表同步用的 gzip+Base64 编解码：中文多 KB 往返、确定性、坏 Base64 / 非 gzip / 截断 / 非 UTF-8 一律返回 null、90 KB 上限边界 |
 
-当前共 **68 个测试**，`.\gradlew.bat testDebugUnitTest` 全部通过。
+当前共 **83 个测试**（17 + 22 + 13 + 16 + 6 + 9），`.\gradlew.bat testDebugUnitTest` 全部通过。
 
 ### 安装到设备
 
@@ -282,7 +488,7 @@ adb install -r app\build\outputs\apk\debug\app-debug.apk
 
 ---
 
-## 六、作息时间
+## 七、作息时间
 
 时间取自教务处官网的「作息时间」页：<https://jwzx.sut.edu.cn/index/zxsj.htm>
 （`PeriodTimes.all`，第 1–11 节与官网**逐条一致**）：
@@ -350,7 +556,7 @@ adb install -r app\build\outputs\apk\debug\app-debug.apk
 
 ---
 
-## 七、课程配色
+## 八、课程配色
 
 课程颜色取自 `ui/theme/Color.kt` 的 `CourseColorSlots`（7 个色相 × 4 档明暗 = 28 个槽位）。
 槽位**按档位交错排列**，且颜色**按课表顺序分配**（`courseColorsFor`），
@@ -363,7 +569,7 @@ adb install -r app\build\outputs\apk\debug\app-debug.apk
 
 ---
 
-## 八、检查更新
+## 九、检查更新
 
 应用启动时会自动查一次 GitHub Releases，发现新版本就弹窗提示；设置页也有「检查更新」入口。
 
@@ -403,7 +609,7 @@ atom 解析不出任何版本时才退回 API。
 
 ---
 
-## 九、Smartspacer 集成
+## 十、Smartspacer 集成
 
 把「下一节课」提供给 [Smartspacer](https://github.com/KieronQuinn/Smartspacer)，这样桌面/锁屏的
 「一览」里可以直接显示下一节课的名称、时间和教室，点一下打开 App。
@@ -460,7 +666,7 @@ Smartspacer 插件 SDK 的 AAR 声明了 **minSdk 29**，而本应用是 **26**�
 
 ---
 
-## 十、发布与签名
+## 十一、发布与签名
 
 > **⚠️ 发布密钥是有意公开的。** 仓库根目录的 `wakeup-release.jks` 及其口令写在
 > [`SIGNING.md`](SIGNING.md) 里，任何访问本仓库的人都能拿到。这意味着**任何持有它的人都可以
@@ -523,7 +729,8 @@ export KEY_PASSWORD=...
 ./gradlew assembleRelease -PrequireSigning=true
 ```
 
-也支持 `KEYSTORE_BASE64`（构建时解码到 `app/build/release-keystore.jks`），
+也支持 `KEYSTORE_BASE64`（构建时解码到各模块的 `build/release-keystore.jks`，
+即 `app/build/` 或 `wear/build/` 下），
 以及写在 `gradle.properties` 里的同名属性。`.gitignore` 已忽略 `*.jks` / `*.keystore` /
 `keystore.properties`，密钥不会被提交。
 
@@ -535,7 +742,11 @@ export KEY_PASSWORD=...
 
 ```bash
 apksigner verify --print-certs app/build/outputs/apk/release/app-release.apk
+apksigner verify --print-certs wear/build/outputs/apk/release/wear-release.apk
 ```
+
+手机端与手表端用**同一个 keystore** 签名（`:app` 与 `:wear` 各配一份 `signingConfigs.release`），
+所以两个 APK 的证书指纹必须相同；`release.yml` 也是逐个模块核对并写进 job summary 的。
 
 ### 发布说明（CHANGELOG）
 
@@ -546,12 +757,12 @@ apksigner verify --print-certs app/build/outputs/apk/release/app-release.apk
   其中 **`注意` 用于升级前必须知道的事**（签名变更、需要卸载等）；
 - 不要照抄 commit 标题 —— 提交信息是给开发者看的，日志是给用户看的。
 
-`release.yml` 的 `Extract changelog` 步骤会按标签名（`v1.0.6` → `1.0.6`）切出对应段落，
+`release.yml` 的 `Extract changelog` 步骤会按标签名（`v1.0.8` → `1.0.8`）切出对应段落，
 作为 Release 正文。**找不到段落时退回自动生成的提交列表并打 warning**，不会让发布失败。
 
 ---
 
-## 十一、说明
+## 十二、说明
 
 - 课表数据来自教务系统，具体课程请遵循所在学院实际安排。
 - 代码与文档里**不含任何真实课表 token**：示例值统一是占位的 `100000`。

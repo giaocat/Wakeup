@@ -1,43 +1,45 @@
 package com.wakeup.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.CloudSync
-import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,24 +48,37 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.wakeup.BuildConfig
 import com.wakeup.data.remote.WakeupApiFactory
 import com.wakeup.data.repository.ThemeMode
 import com.wakeup.data.repository.UserSettings
 import com.wakeup.ui.ScheduleUiState
+import com.wakeup.ui.adaptive.AdaptiveWindowInfo
+import com.wakeup.ui.adaptive.contentMaxWidth
 import com.wakeup.ui.components.UpdateRow
 import com.wakeup.util.TimeUtils
 
-@OptIn(
-    ExperimentalMaterial3Api::class,
-    androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class,
-)
+/**
+ * 设置页。
+ *
+ * 版式遵循 Material 3 设置页的既有做法：
+ * - 顶栏是 [TopAppBar] + 返回箭头；
+ * - 内容用 [LazyColumn]，每个分组由「labelLarge 分组标题 + [ListItem] 行 + [HorizontalDivider]」组成；
+ * - 开关行用 `ListItem(trailingContent = { Switch(...) })`，整行可切换（toggleable + Role.Switch）；
+ * - 主题模式是单选项列表（selectable + Role.RadioButton）。
+ *
+ * 自适应（[adaptive]）：
+ * - 正文收窄到 840dp 并水平居中，1000dp 以上的窗口不会出现「单栏列表拉满整屏」；
+ * - Expanded 宽度下分组排成两列（[Row] + 两个带 weight 的 [Column]），一屏放下更多设置项。
+ *
+ * 链接编辑不放在行内输入框里，而是点「修改」后弹 [AlertDialog]，避免设置页出现表单式排版。
+ */
 @Composable
 fun SettingsScreen(
     settings: UserSettings,
@@ -77,230 +92,103 @@ fun SettingsScreen(
     onRefresh: () -> Unit,
     onClearCache: () -> Unit,
     onOpenRelease: (String) -> Unit,
+    onBack: () -> Unit,
     updateChecking: Boolean = false,
     updateError: String? = null,
     latestVersion: String? = null,
     onCheckUpdate: () -> Unit = {},
     modifier: Modifier = Modifier,
+    adaptive: AdaptiveWindowInfo = AdaptiveWindowInfo(),
 ) {
-    var urlDraft by rememberSaveable(settings.timetableUrl) { mutableStateOf(settings.timetableUrl) }
-    var baseUrlDraft by rememberSaveable(settings.baseUrl) { mutableStateOf(settings.baseUrl) }
-    var showBaseUrl by rememberSaveable { mutableStateOf(false) }
+    var editingTimetableUrl by rememberSaveable { mutableStateOf(false) }
+    var editingBaseUrl by rememberSaveable { mutableStateOf(false) }
     var confirmClearCache by remember { mutableStateOf(false) }
-
-    val urlChanged = urlDraft.trim() != settings.timetableUrl
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
         topBar = {
             TopAppBar(
-                title = { Text("设置", fontWeight = FontWeight.SemiBold) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+                title = { Text("设置") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "返回课表",
+                        )
+                    }
+                },
             )
         },
     ) { innerPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp),
+                .padding(innerPadding),
         ) {
-            // ---- 课表来源 ----
-            SectionTitle("课表来源")
-
-            OutlinedTextField(
-                value = urlDraft,
-                onValueChange = { urlDraft = it },
-                label = { Text("课表链接") },
-                placeholder = { Text(WakeupApiFactory.TIMETABLE_URL_EXAMPLE) },
-                supportingText = {
-                    Text("粘贴教务系统里的完整课表链接；也可以只填 token（如 100000）。")
-                },
-                singleLine = true,
-                isError = urlDraft.isBlank(),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Uri,
-                    imeAction = ImeAction.Done,
-                ),
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(
-                    onClick = { onTimetableUrlChange(urlDraft) },
-                    enabled = !state.isLoading && urlDraft.isNotBlank() && urlChanged,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    if (state.isLoading) {
-                        LoadingIndicator(modifier = Modifier.size(18.dp))
-                    } else {
-                        Icon(Icons.Outlined.CloudSync, contentDescription = null)
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    Text(if (state.isLoading) "同步中" else "保存并同步")
-                }
-                OutlinedButton(
-                    onClick = {
-                        urlDraft = settings.timetableUrl
-                        onRefresh()
-                    },
-                    enabled = !state.isLoading,
-                ) {
-                    Text("刷新")
-                }
-            }
-
-            TextButton(onClick = { showBaseUrl = !showBaseUrl }) {
-                Text(if (showBaseUrl) "收起服务地址" else "只填 token？设置服务地址")
-            }
-
-            if (showBaseUrl) {
-                OutlinedTextField(
-                    value = baseUrlDraft,
-                    onValueChange = { baseUrlDraft = it },
-                    label = { Text("服务地址（token 模式使用）") },
-                    placeholder = { Text(WakeupApiFactory.DEFAULT_BASE_URL) },
-                    supportingText = { Text("只填 token 时，会拼成「服务地址/user/kb/table/token/<token>」。") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Uri,
-                        imeAction = ImeAction.Done,
-                    ),
-                    trailingIcon = {
-                        TextButton(
-                            onClick = {
-                                onBaseUrlChange(baseUrlDraft)
-                            },
-                            enabled = baseUrlDraft.trim() != settings.baseUrl,
-                        ) { Text("保存") }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-
-            // ---- 数据与缓存 ----
-            SectionTitle("数据与缓存")
-
-            InfoCard(
-                icon = Icons.Outlined.CloudSync,
-                title = "同步状态",
-                lines = buildList {
-                    add("上次同步：${TimeUtils.relativeTime(state.lastSyncedAt)}")
-                    state.userName?.let { add("账号：$it") }
-                    state.timetable.term.name.takeIf { it.isNotBlank() }?.let { add("学期：$it") }
-                    if (state.hasData) {
-                        add(
-                            "课程：${state.timetable.scheduled.size} 门已排课" +
-                                if (state.timetable.unscheduled.isNotEmpty()) {
-                                    "，${state.timetable.unscheduled.size} 门未排课"
-                                } else {
-                                    ""
-                                },
-                        )
-                    }
-                    state.errorMessage?.let { add("错误：$it") }
-                },
+            SettingsContent(
+                settings = settings,
+                state = state,
+                cacheSizeBytes = cacheSizeBytes,
+                twoColumns = adaptive.isExpandedWidth,
+                onEditTimetableUrl = { editingTimetableUrl = true },
+                onEditBaseUrl = { editingBaseUrl = true },
+                onThemeModeChange = onThemeModeChange,
+                onDynamicColorChange = onDynamicColorChange,
+                onHideUnscheduledChange = onHideUnscheduledChange,
                 onRefresh = onRefresh,
-                refreshing = state.isLoading,
-            )
-
-            InfoCard(
-                icon = Icons.Outlined.Storage,
-                title = "本地缓存",
-                lines = buildList {
-                    add("缓存大小：${formatSize(cacheSizeBytes)}")
-                    add(
-                        if (state.hasData && state.isFromCache) {
-                            "当前正在使用缓存数据，联网后刷新即可更新。"
-                        } else {
-                            "同步成功后会自动保存，离线时直接打开也能看到课表。"
-                        },
-                    )
-                },
-                onRefresh = null,
-                refreshing = false,
-            )
-
-            OutlinedButton(
-                onClick = { confirmClearCache = true },
-                enabled = cacheSizeBytes > 0 || state.hasData,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(Icons.Outlined.DeleteOutline, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("清空本地缓存")
-            }
-
-            // ---- 外观 ----
-            SectionTitle("外观")
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.DarkMode, contentDescription = null, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(12.dp))
-                Text("主题模式", style = MaterialTheme.typography.bodyLarge)
-            }
-
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                ThemeMode.entries.forEachIndexed { index, mode ->
-                    SegmentedButton(
-                        selected = settings.themeMode == mode,
-                        onClick = { onThemeModeChange(mode) },
-                        shape = SegmentedButtonDefaults.itemShape(
-                            index = index,
-                            count = ThemeMode.entries.size,
-                        ),
-                        label = { Text(mode.displayName) },
-                    )
-                }
-            }
-
-            SettingsSwitch(
-                icon = Icons.Outlined.Palette,
-                title = "动态取色",
-                subtitle = "Android 12 及以上跟随系统壁纸配色",
-                checked = settings.dynamicColor,
-                onCheckedChange = onDynamicColorChange,
-            )
-
-            // ---- 显示 ----
-            SectionTitle("显示")
-
-            SettingsSwitch(
-                icon = Icons.Outlined.Visibility,
-                title = "隐藏未排课课程",
-                subtitle = "未排课指培养方案里有、但本学期没有安排时间的课程",
-                checked = settings.hideUnscheduled,
-                onCheckedChange = onHideUnscheduledChange,
-            )
-
-            // ---- 版本与更新 ----
-            SectionTitle("版本")
-
-            UpdateRow(
-                currentVersion = BuildConfig.VERSION_NAME,
+                onClearCache = { confirmClearCache = true },
+                updateChecking = updateChecking,
+                updateError = updateError,
                 latestVersion = latestVersion,
-                checking = updateChecking,
-                error = updateError,
-                onCheck = onCheckUpdate,
+                onCheckUpdate = onCheckUpdate,
                 onOpenRelease = onOpenRelease,
-            )
-
-            Text(
-                text = "Wakeup 课表 v${BuildConfig.VERSION_NAME}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .contentMaxWidth()
+                    .fillMaxHeight(),
             )
         }
+    }
+
+    if (editingTimetableUrl) {
+        TextInputDialog(
+            title = "课表链接",
+            label = "课表链接",
+            initialValue = settings.timetableUrl,
+            placeholder = WakeupApiFactory.TIMETABLE_URL_EXAMPLE,
+            supportingText = "粘贴教务系统里的完整课表链接；也可以只填 token（如 100000）。",
+            confirmText = "保存并同步",
+            onDismiss = { editingTimetableUrl = false },
+            onConfirm = { value ->
+                editingTimetableUrl = false
+                onTimetableUrlChange(value)
+            },
+        )
+    }
+
+    if (editingBaseUrl) {
+        TextInputDialog(
+            title = "服务地址",
+            label = "服务地址（token 模式使用）",
+            initialValue = settings.baseUrl,
+            placeholder = WakeupApiFactory.DEFAULT_BASE_URL,
+            supportingText = "只填 token 时，会拼成「服务地址/user/kb/table/token/<token>」。",
+            confirmText = "保存",
+            onDismiss = { editingBaseUrl = false },
+            onConfirm = { value ->
+                editingBaseUrl = false
+                onBaseUrlChange(value)
+            },
+        )
     }
 
     if (confirmClearCache) {
         AlertDialog(
             onDismissRequest = { confirmClearCache = false },
+            icon = {
+                Icon(Icons.Outlined.DeleteOutline, contentDescription = null)
+            },
             title = { Text("清空本地缓存？") },
             text = { Text("会删除已保存的课表数据，下次打开需要联网重新同步。") },
             confirmButton = {
@@ -308,7 +196,6 @@ fun SettingsScreen(
                     onClick = {
                         confirmClearCache = false
                         onClearCache()
-                        urlDraft = settings.timetableUrl
                     },
                 ) { Text("清空") }
             },
@@ -317,6 +204,431 @@ fun SettingsScreen(
             },
         )
     }
+}
+
+/**
+ * 设置内容：单栏或两栏。
+ *
+ * 两种排法用的是同一批 [SettingsSection] 分组，只是外层容器不同，
+ * 所以新增设置项只需要改一处。
+ */
+@Composable
+private fun SettingsContent(
+    settings: UserSettings,
+    state: ScheduleUiState,
+    cacheSizeBytes: Long,
+    twoColumns: Boolean,
+    onEditTimetableUrl: () -> Unit,
+    onEditBaseUrl: () -> Unit,
+    onThemeModeChange: (ThemeMode) -> Unit,
+    onDynamicColorChange: (Boolean) -> Unit,
+    onHideUnscheduledChange: (Boolean) -> Unit,
+    onRefresh: () -> Unit,
+    onClearCache: () -> Unit,
+    updateChecking: Boolean,
+    updateError: String?,
+    latestVersion: String?,
+    onCheckUpdate: () -> Unit,
+    onOpenRelease: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val sectionSpacing = 24.dp
+
+    if (twoColumns) {
+        // Expanded：左右各一列分组，正文仍然不超过 840dp
+        LazyColumn(
+            modifier = modifier,
+            contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(sectionSpacing),
+        ) {
+            item(key = "columns") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(sectionSpacing),
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(sectionSpacing),
+                    ) {
+                        SourceSection(
+                            settings = settings,
+                            state = state,
+                            onEditTimetableUrl = onEditTimetableUrl,
+                            onEditBaseUrl = onEditBaseUrl,
+                            onRefresh = onRefresh,
+                        )
+                        CacheSection(
+                            cacheSizeBytes = cacheSizeBytes,
+                            hasData = state.hasData,
+                            onClear = onClearCache,
+                        )
+                    }
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(sectionSpacing),
+                    ) {
+                        AppearanceSection(
+                            settings = settings,
+                            onThemeModeChange = onThemeModeChange,
+                            onDynamicColorChange = onDynamicColorChange,
+                        )
+                        DisplaySection(
+                            settings = settings,
+                            onHideUnscheduledChange = onHideUnscheduledChange,
+                        )
+                        VersionSection(
+                            latestVersion = latestVersion,
+                            checking = updateChecking,
+                            error = updateError,
+                            onCheck = onCheckUpdate,
+                            onOpenRelease = onOpenRelease,
+                        )
+                    }
+                }
+            }
+            item(key = "footer") { SettingsFooter() }
+        }
+    } else {
+        LazyColumn(
+            modifier = modifier,
+            contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(sectionSpacing),
+        ) {
+            item(key = "source") {
+                SourceSection(
+                    settings = settings,
+                    state = state,
+                    onEditTimetableUrl = onEditTimetableUrl,
+                    onEditBaseUrl = onEditBaseUrl,
+                    onRefresh = onRefresh,
+                )
+            }
+            item(key = "cache") {
+                CacheSection(
+                    cacheSizeBytes = cacheSizeBytes,
+                    hasData = state.hasData,
+                    onClear = onClearCache,
+                )
+            }
+            item(key = "appearance") {
+                AppearanceSection(
+                    settings = settings,
+                    onThemeModeChange = onThemeModeChange,
+                    onDynamicColorChange = onDynamicColorChange,
+                )
+            }
+            item(key = "display") {
+                DisplaySection(
+                    settings = settings,
+                    onHideUnscheduledChange = onHideUnscheduledChange,
+                )
+            }
+            item(key = "version") {
+                VersionSection(
+                    latestVersion = latestVersion,
+                    checking = updateChecking,
+                    error = updateError,
+                    onCheck = onCheckUpdate,
+                    onOpenRelease = onOpenRelease,
+                )
+            }
+            item(key = "footer") { SettingsFooter() }
+        }
+    }
+}
+
+/** 「课表来源」分组：链接、服务地址、同步状态。 */
+@Composable
+private fun SourceSection(
+    settings: UserSettings,
+    state: ScheduleUiState,
+    onEditTimetableUrl: () -> Unit,
+    onEditBaseUrl: () -> Unit,
+    onRefresh: () -> Unit,
+) {
+    SettingsSection(title = "课表来源") {
+        ListItem(
+            headlineContent = { Text("课表链接") },
+            supportingContent = {
+                Text(
+                    text = settings.timetableUrl.ifBlank { "未设置，点右侧「修改」填写" },
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            },
+            leadingContent = {
+                Icon(Icons.Outlined.Link, contentDescription = null)
+            },
+            trailingContent = {
+                TextButton(onClick = onEditTimetableUrl) { Text("修改") }
+            },
+        )
+        SettingDivider()
+        ListItem(
+            headlineContent = { Text("服务地址") },
+            supportingContent = {
+                Text(
+                    text = settings.baseUrl,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            },
+            leadingContent = {
+                Icon(Icons.Outlined.Language, contentDescription = null)
+            },
+            trailingContent = {
+                TextButton(onClick = onEditBaseUrl) { Text("修改") }
+            },
+        )
+        SettingDivider()
+        ListItem(
+            headlineContent = { Text("同步状态") },
+            supportingContent = {
+                Text(
+                    text = syncSummary(state),
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            },
+            leadingContent = {
+                Icon(Icons.Outlined.CloudSync, contentDescription = null)
+            },
+            trailingContent = {
+                TextButton(onClick = onRefresh, enabled = !state.isLoading) {
+                    Text(if (state.isLoading) "同步中" else "刷新")
+                }
+            },
+        )
+    }
+}
+
+/** 「数据与缓存」分组。 */
+@Composable
+private fun CacheSection(
+    cacheSizeBytes: Long,
+    hasData: Boolean,
+    onClear: () -> Unit,
+) {
+    SettingsSection(title = "数据与缓存") {
+        ListItem(
+            headlineContent = { Text("本地缓存") },
+            supportingContent = {
+                Text(
+                    text = "占用 ${formatSize(cacheSizeBytes)}。" +
+                        "同步成功后会自动保存，离线时直接打开也能看到课表。",
+                )
+            },
+            leadingContent = {
+                Icon(Icons.Outlined.Storage, contentDescription = null)
+            },
+            trailingContent = {
+                TextButton(
+                    onClick = onClear,
+                    enabled = cacheSizeBytes > 0 || hasData,
+                ) {
+                    Text("清空")
+                }
+            },
+        )
+    }
+}
+
+/** 「外观」分组：主题模式 + 动态取色。 */
+@Composable
+private fun AppearanceSection(
+    settings: UserSettings,
+    onThemeModeChange: (ThemeMode) -> Unit,
+    onDynamicColorChange: (Boolean) -> Unit,
+) {
+    SettingsSection(title = "外观") {
+        ThemeMode.entries.forEach { mode ->
+            val selected = settings.themeMode == mode
+            ListItem(
+                modifier = Modifier.selectable(
+                    selected = selected,
+                    onClick = { onThemeModeChange(mode) },
+                    role = Role.RadioButton,
+                ),
+                headlineContent = { Text(mode.displayName) },
+                trailingContent = {
+                    RadioButton(selected = selected, onClick = null)
+                },
+            )
+        }
+        SettingDivider()
+        ListItem(
+            modifier = Modifier.toggleable(
+                value = settings.dynamicColor,
+                onValueChange = onDynamicColorChange,
+                role = Role.Switch,
+            ),
+            headlineContent = { Text("动态取色") },
+            supportingContent = {
+                Text("Android 12 及以上跟随系统壁纸配色")
+            },
+            leadingContent = {
+                Icon(Icons.Outlined.Palette, contentDescription = null)
+            },
+            trailingContent = {
+                Switch(checked = settings.dynamicColor, onCheckedChange = null)
+            },
+        )
+    }
+}
+
+/** 「显示」分组。 */
+@Composable
+private fun DisplaySection(
+    settings: UserSettings,
+    onHideUnscheduledChange: (Boolean) -> Unit,
+) {
+    SettingsSection(title = "显示") {
+        ListItem(
+            modifier = Modifier.toggleable(
+                value = settings.hideUnscheduled,
+                onValueChange = onHideUnscheduledChange,
+                role = Role.Switch,
+            ),
+            headlineContent = { Text("隐藏未排课课程") },
+            supportingContent = {
+                Text("未排课指培养方案里有、但本学期没有安排时间的课程")
+            },
+            leadingContent = {
+                Icon(Icons.Outlined.Visibility, contentDescription = null)
+            },
+            trailingContent = {
+                Switch(checked = settings.hideUnscheduled, onCheckedChange = null)
+            },
+        )
+    }
+}
+
+/** 「版本与更新」分组。 */
+@Composable
+private fun VersionSection(
+    latestVersion: String?,
+    checking: Boolean,
+    error: String?,
+    onCheck: () -> Unit,
+    onOpenRelease: (String) -> Unit,
+) {
+    SettingsSection(title = "版本") {
+        UpdateRow(
+            currentVersion = BuildConfig.VERSION_NAME,
+            latestVersion = latestVersion,
+            checking = checking,
+            error = error,
+            onCheck = onCheck,
+            onOpenRelease = onOpenRelease,
+        )
+    }
+}
+
+/** 页脚版本号。 */
+@Composable
+private fun SettingsFooter() {
+    Text(
+        text = "Wakeup 课表 v${BuildConfig.VERSION_NAME}",
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+    )
+}
+
+/** 设置分组：labelLarge 标题 + 若干 [ListItem] 行。 */
+@Composable
+private fun SettingsSection(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+        )
+        content()
+    }
+}
+
+/** 设置行之间的分隔线：与列表内容左对齐。 */
+@Composable
+private fun SettingDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(horizontal = 16.dp),
+        color = MaterialTheme.colorScheme.outlineVariant,
+    )
+}
+
+/** 链接编辑对话框：标题 + 单行输入框 + 取消/确认。 */
+@Composable
+private fun TextInputDialog(
+    title: String,
+    label: String,
+    initialValue: String,
+    placeholder: String,
+    supportingText: String,
+    confirmText: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit,
+) {
+    var draft by rememberSaveable(initialValue) { mutableStateOf(initialValue) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            OutlinedTextField(
+                value = draft,
+                onValueChange = { draft = it },
+                label = { Text(label) },
+                placeholder = {
+                    Text(
+                        text = placeholder,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+                supportingText = { Text(supportingText) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Uri,
+                    imeAction = ImeAction.Done,
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(draft.trim()) },
+                enabled = draft.isNotBlank(),
+            ) {
+                Text(confirmText)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        },
+    )
+}
+
+/** 同步状态摘要：上次同步、账号、学期、课程数量与缓存状态。 */
+private fun syncSummary(state: ScheduleUiState): String = buildString {
+    append("上次同步：${TimeUtils.relativeTime(state.lastSyncedAt)}")
+    if (state.isFromCache) append(" · 使用本地缓存")
+    state.userName?.let { append(" · 账号 $it") }
+    state.timetable.term.name.takeIf { it.isNotBlank() }?.let { append(" · 学期 $it") }
+    if (state.hasData) {
+        append(" · 已排课 ${state.timetable.scheduled.size} 门")
+        if (state.timetable.unscheduled.isNotEmpty()) {
+            append(" · 未排课 ${state.timetable.unscheduled.size} 门")
+        }
+    }
+    state.errorMessage?.let { append("\n错误：$it") }
 }
 
 private fun formatSize(bytes: Long): String = when {
@@ -332,80 +644,3 @@ private val ThemeMode.displayName: String
         ThemeMode.LIGHT -> "浅色"
         ThemeMode.DARK -> "深色"
     }
-
-@Composable
-private fun SectionTitle(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.primary,
-    )
-}
-
-@Composable
-private fun SettingsSwitch(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp))
-        Spacer(Modifier.width(14.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Spacer(Modifier.width(8.dp))
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
-    }
-}
-
-@Composable
-private fun InfoCard(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    lines: List<String>,
-    onRefresh: (() -> Unit)?,
-    refreshing: Boolean,
-) {
-    Surface(
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f),
-                )
-                if (onRefresh != null) {
-                    TextButton(onClick = onRefresh, enabled = !refreshing) { Text("刷新") }
-                }
-            }
-            Spacer(Modifier.height(6.dp))
-            lines.forEach { line ->
-                Text(
-                    text = line,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(2.dp))
-            }
-        }
-    }
-}

@@ -62,28 +62,49 @@ jobs:
 
       # 打印签名证书指纹：这是验证「签名是否稳定」的依据 ——
       # 同一个 keystore 每次构建的指纹必须完全相同。
+      # 手机端与手表端两个 APK 都要查：它们用同一个 keystore，指纹也必须一致。
       - name: Report signing certificate
         run: |
           set -e
-          APK="$(find app/build/outputs/apk/release -name '*.apk' | head -n 1)"
-          echo "APK: ${APK}"
-          if echo "${APK}" | grep -q 'unsigned'; then
-            echo "::error::产出了未签名 APK，签名配置未生效"
-            exit 1
-          fi
           APKSIGNER="$(find "${ANDROID_HOME}/build-tools" -name apksigner -type f | sort | tail -n 1)"
-          "$APKSIGNER" verify --print-certs "${APK}" | tee /tmp/certs.txt
-          DIGEST="$(grep -i 'SHA-256 digest' /tmp/certs.txt | head -n 1)"
-          echo "签名证书：${DIGEST}"
           echo "### 签名证书 SHA-256" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          cat /tmp/certs.txt >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          for MODULE in app wear; do
+            APK="$(find "${MODULE}/build/outputs/apk/release" -name '*.apk' | head -n 1)"
+            if [ -z "${APK}" ]; then
+              echo "::error::${MODULE} 没有产出 release APK"
+              exit 1
+            fi
+            echo "APK: ${APK}"
+            if echo "${APK}" | grep -q 'unsigned'; then
+              echo "::error::${MODULE} 产出了未签名 APK，签名配置未生效"
+              exit 1
+            fi
+            "$APKSIGNER" verify --print-certs "${APK}" | tee "/tmp/certs-${MODULE}.txt"
+            echo "---"
+            DIGEST="$(grep -i 'SHA-256 digest' "/tmp/certs-${MODULE}.txt" | head -n 1)"
+            echo "${MODULE} 签名证书：${DIGEST}"
+            echo "\`${MODULE}\`" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            cat "/tmp/certs-${MODULE}.txt" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          done
 
+      # 两个端各自一个 APK：文件名字带 phone / wear，用户不会下错。
       - name: Collect APKs
         run: |
+          set -e
           mkdir -p dist
-          find app/build/outputs/apk -name '*.apk' -exec cp {} dist/ \;
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="dev"
+          fi
+          PHONE="$(find app/build/outputs/apk/release -name '*.apk' | head -n 1)"
+          WEAR="$(find wear/build/outputs/apk/release -name '*.apk' | head -n 1)"
+          [ -n "$PHONE" ] || { echo "::error::没有找到手机端 APK"; exit 1; }
+          [ -n "$WEAR" ] || { echo "::error::没有找到手表端 APK"; exit 1; }
+          cp "$PHONE" "dist/wakeup-phone-${VERSION}.apk"
+          cp "$WEAR" "dist/wakeup-wear-${VERSION}.apk"
           ls -lh dist/
 
       - name: Upload workflow artifact

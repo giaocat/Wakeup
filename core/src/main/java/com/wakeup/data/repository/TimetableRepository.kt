@@ -46,6 +46,14 @@ class TimetableRepository(
     fun cachedTimetable(): Timetable? = cached
 
     /**
+     * 内存里保存的原始课表 JSON（页面 `this.init(...)` 里抽出来的那段）。
+     *
+     * 手机端把它压缩后经 Wearable Data Layer 推给手表；没有同步成功过、或刚清过缓存时返回 null。
+     * 只暴露只读视图，不提供 setter —— 原始数据的唯一写入口是 [refresh] / [adoptSyncedTimetable]。
+     */
+    fun cachedRawPayload(): String? = cachedPayload
+
+    /**
      * 立刻给出一份可用课表：优先内存缓存，其次磁盘缓存。
      *
      * 供 **ContentProvider**（Smartspacer 的 Target）这类拿不到挂起上下文、
@@ -108,6 +116,54 @@ class TimetableRepository(
         lastSyncedAt = stored.syncedAt
         usingCache = true
         return true
+    }
+
+    /**
+     * 采纳外部推来的课表（手机端经 Wearable Data Layer 同步给手表）。
+     *
+     * 处理链路和 [restoreFromCacheNow] 一致：原始 JSON → 接口模型 → 领域模型；
+     * 区别是数据不是从磁盘读的，所以成功后**内存和磁盘都要更新**，并把
+     * [lastSyncedAt] 记成手机那边给出的同步时间（手机和手表显示同一个"最后同步"）。
+     *
+     * 解析失败时返回 null，**并且完全不动现有缓存**：宁可手表继续用旧课表，
+     * 也不能让一条坏数据把已经能用的缓存顶掉。
+     *
+     * @param sourceUrl 手机端当前使用的课表来源；为空时沿用本地已知来源，避免清空缓存里的来源。
+     * @param payload 从课表页面抽出来的原始 JSON。
+     * @param syncedAt 手机端同步成功的时间（毫秒）；<= 0 时用当前时间兜底。
+     */
+    suspend fun adoptSyncedTimetable(
+        sourceUrl: String,
+        payload: String,
+        syncedAt: Long,
+    ): Timetable? {
+        if (payload.isBlank()) return null
+        val effectiveSourceUrl = sourceUrl.trim().ifBlank { cachedSourceUrl }
+        val response = CachedTimetable(
+            sourceUrl = effectiveSourceUrl,
+            payload = payload,
+            syncedAt = syncedAt,
+        ).toResponseOrNull() ?: return null
+        val domain = runCatching {
+            TimetableMapper.toDomain(response, sourceUrl = effectiveSourceUrl)
+        }.getOrNull() ?: return null
+        val effectiveSyncedAt = if (syncedAt > 0L) syncedAt else System.currentTimeMillis()
+
+        cached = domain
+        cachedPayload = payload
+        cachedSourceUrl = effectiveSourceUrl
+        lastSyncedAt = effectiveSyncedAt
+        // 这份数据是刚同步过来的新数据，不是"从磁盘恢复的旧缓存"
+        usingCache = false
+        cache?.save(
+            CachedTimetable(
+                sourceUrl = effectiveSourceUrl,
+                payload = payload,
+                syncedAt = effectiveSyncedAt,
+            ),
+        )
+        onCacheChanged?.invoke()
+        return domain
     }
 
     /** 拉取并解析课表；成功时写入内存与磁盘缓存。 */

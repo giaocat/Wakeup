@@ -4,10 +4,8 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -16,17 +14,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.wakeup.BuildConfig
 import com.wakeup.data.update.UpdateInfo
@@ -51,7 +49,6 @@ fun UpdateDialog(
             Icon(
                 imageVector = Icons.Outlined.FileDownload,
                 contentDescription = null,
-                modifier = Modifier.size(24.dp),
             )
         },
         title = { Text("发现新版本 ${info.versionLabel}") },
@@ -76,14 +73,14 @@ fun UpdateDialog(
                     ) {
                         Text(
                             text = notes,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(10.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(16.dp),
                         )
                     }
                 }
                 Text(
                     text = "点击「去下载」打开发布页，下载 APK 后手动安装。",
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -103,9 +100,9 @@ fun UpdateDialog(
                 Icon(
                     imageVector = Icons.Outlined.FileDownload,
                     contentDescription = null,
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(20.dp),
                 )
-                Spacer(Modifier.width(6.dp))
+                Spacer(Modifier.width(8.dp))
                 Text("去下载")
             }
         },
@@ -115,7 +112,11 @@ fun UpdateDialog(
     )
 }
 
-/** 设置页里的「检查更新」行。 */
+/**
+ * 设置页里的「检查更新」行。
+ *
+ * 与设置页其它行一致，使用 [ListItem]：标题 + 状态说明 + 尾部操作按钮。
+ */
 @Composable
 fun UpdateRow(
     currentVersion: String,
@@ -126,40 +127,38 @@ fun UpdateRow(
     onOpenRelease: (String) -> Unit,
     releaseUrl: String = BuildConfig.RELEASES_PAGE_URL,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            imageVector = Icons.Outlined.FileDownload,
-            contentDescription = null,
-            modifier = Modifier.size(22.dp),
-        )
-        Spacer(Modifier.width(14.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text("检查更新", style = MaterialTheme.typography.bodyLarge)
+    val hasUpdate = latestVersion != null
+
+    ListItem(
+        headlineContent = { Text("检查更新") },
+        supportingContent = {
             Text(
                 text = when {
                     checking -> "正在检查…"
-                    latestVersion != null -> "发现新版本 v$latestVersion"
+                    hasUpdate -> "发现新版本 v$latestVersion"
                     error != null -> error
                     else -> "当前版本 v$currentVersion"
                 },
-                style = MaterialTheme.typography.bodySmall,
-                color = if (latestVersion != null) {
+                color = if (hasUpdate) {
                     MaterialTheme.colorScheme.primary
                 } else {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 },
-                fontWeight = if (latestVersion != null) FontWeight.Medium else FontWeight.Normal,
+                maxLines = 3,
             )
-        }
-        Spacer(Modifier.width(8.dp))
-        TextButton(
-            onClick = { if (latestVersion != null) onOpenRelease(releaseUrl) else onCheck() },
-            enabled = !checking,
-        ) {
-            Text(if (latestVersion != null) "去下载" else "检查")
-        }
-    }
+        },
+        leadingContent = {
+            Icon(Icons.Outlined.SystemUpdate, contentDescription = null)
+        },
+        trailingContent = {
+            TextButton(
+                onClick = {
+                    if (hasUpdate) onOpenRelease(releaseUrl) else onCheck()
+                },
+                enabled = !checking,
+            ) {
+                Text(if (hasUpdate) "去下载" else "检查")
+            }
+        },
+    )
 }

@@ -59,3 +59,22 @@ object WakeupApiFactory {
 /** 统一补齐结尾斜杠，供 Retrofit baseUrl 与页面地址拼接复用。 */
 internal fun String.ensureTrailingSlash(): String =
     if (endsWith("/")) this else "$this/"
+
+/**
+ * 用 token 拼出完整课表链接。
+ *
+ * 手表端（`:wear`）没有输入框，也不该在表盘上敲一长串 URL，
+ * 所以那里只让用户填数字 token，这里负责拼成和手机端一样的链接。
+ */
+fun tokenToTimetableUrl(
+    token: String,
+    baseUrl: String = WakeupApiFactory.DEFAULT_BASE_URL,
+): String = "${baseUrl.ensureTrailingSlash()}user/kb/table/token/${token.trim().trim('/')}"
+
+/** 从完整链接里取回 token；取不到时返回空串（供手表端回显当前 token）。 */
+fun timetableUrlToToken(url: String): String {
+    val value = url.trim()
+    if (value.isEmpty()) return ""
+    val afterToken = value.substringAfter("/token/", missingDelimiterValue = "")
+    return afterToken.trim('/').substringBefore('?').substringBefore('#')
+}

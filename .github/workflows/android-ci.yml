@@ -58,7 +58,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
-          path: app/build/outputs/apk/debug/*.apk
+          # 手机端与手表端两个 debug 包（:wear 是独立 APK）
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            wear/build/outputs/apk/debug/*.apk
           if-no-files-found: warn
 
       - name: Upload test report
@@ -66,7 +69,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: unit-test-report
-          path: app/build/reports/tests/testDebugUnitTest/**
+          path: |
+            app/build/reports/tests/testDebugUnitTest/**
+            core/build/reports/tests/testDebugUnitTest/**
           if-no-files-found: warn
 
       - name: Upload lint report
@@ -74,5 +79,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lint-report
-          path: app/build/reports/lint-results-debug.html
+          path: |
+            app/build/reports/lint-results-debug.html
+            wear/build/reports/lint-results-debug.html
+            core/build/reports/lint-results-debug.html
           if-no-files-found: warn

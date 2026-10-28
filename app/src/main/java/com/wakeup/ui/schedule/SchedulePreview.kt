@@ -2,14 +2,18 @@ package com.wakeup.ui.schedule
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.wakeup.data.repository.ThemeMode
 import com.wakeup.domain.Course
 import com.wakeup.domain.Term
 import com.wakeup.domain.Timetable
 import com.wakeup.domain.TimetableCourse
 import com.wakeup.ui.ScheduleUiState
+import com.wakeup.ui.adaptive.AdaptiveWindowInfo
+import com.wakeup.ui.adaptive.FoldPosture
 import com.wakeup.ui.theme.WakeupTheme
 import java.time.LocalDate
 
@@ -32,6 +36,81 @@ private fun ScheduleScreenPreview() {
                 onRefresh = {},
                 onOpenSettings = {},
                 onCourseClick = {},
+            )
+        }
+    }
+}
+
+/** 空状态预览：检查「图标 + 标题 + 说明 + 文字按钮」的官方空状态版式。 */
+@Preview(name = "课表 空状态", showBackground = true, widthDp = 360, heightDp = 640)
+@Composable
+private fun ScheduleScreenEmptyPreview() {
+    WakeupTheme(themeMode = ThemeMode.LIGHT, dynamicColor = false) {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            ScheduleScreen(
+                state = ScheduleUiState(timetable = Timetable.empty(), hasSource = false),
+                onPreviousWeek = {},
+                onNextWeek = {},
+                onSelectWeek = {},
+                onRefresh = {},
+                onOpenSettings = {},
+                onCourseClick = {},
+            )
+        }
+    }
+}
+
+/**
+ * 平板 / 折叠屏展开态预览：左侧课表 + 右侧内嵌课程详情（列表-详情双栏）。
+ *
+ * 用来检查「Expanded 宽度不再弹底部面板」这一版式；预览数据只服务设计稿。
+ */
+@Preview(name = "课表 平板双栏", showBackground = true, widthDp = 1100, heightDp = 760)
+@Composable
+private fun ScheduleScreenTwoPanePreview() {
+    WakeupTheme(themeMode = ThemeMode.LIGHT, dynamicColor = false) {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            val state = previewState()
+            ScheduleScreen(
+                state = state,
+                onPreviousWeek = {},
+                onNextWeek = {},
+                onSelectWeek = {},
+                onRefresh = {},
+                onOpenSettings = {},
+                onCourseClick = {},
+                adaptive = AdaptiveWindowInfo(widthSizeClass = WindowWidthSizeClass.Expanded),
+                selectedCourse = state.timetable.slotsOfWeek(state.selectedWeek).firstOrNull(),
+                showDetailPane = true,
+            )
+        }
+    }
+}
+
+/**
+ * 折叠屏桌面姿态预览：横向铰链把课表与课程详情上下分开，中间是铰链高度。
+ */
+@Preview(name = "课表 折叠屏桌面姿态", showBackground = true, widthDp = 900, heightDp = 800)
+@Composable
+private fun ScheduleScreenTabletopPreview() {
+    WakeupTheme(themeMode = ThemeMode.LIGHT, dynamicColor = false) {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            val state = previewState()
+            ScheduleScreen(
+                state = state,
+                onPreviousWeek = {},
+                onNextWeek = {},
+                onSelectWeek = {},
+                onRefresh = {},
+                onOpenSettings = {},
+                onCourseClick = {},
+                adaptive = AdaptiveWindowInfo(
+                    widthSizeClass = WindowWidthSizeClass.Expanded,
+                    foldPosture = FoldPosture.HORIZONTAL,
+                    foldGap = 32.dp,
+                ),
+                selectedCourse = state.timetable.slotsOfWeek(state.selectedWeek).firstOrNull(),
+                showDetailPane = true,
             )
         }
     }
