@@ -7,11 +7,14 @@ import com.wakeup.data.remote.SyncResult
 import com.wakeup.data.remote.TimetableMapper
 import com.wakeup.data.remote.TimetableRemoteDataSource
 import com.wakeup.data.remote.WakeupApiFactory
+import com.wakeup.data.remote.ZfRemoteDataSource
 import com.wakeup.domain.Timetable
 
 /** 课表仓库：负责取数、转换、内存缓存与本地磁盘缓存。 */
 class TimetableRepository(
     private val remote: TimetableRemoteDataSource = TimetableRemoteDataSource(),
+    /** 新教务系统（正方）的抓取器；旧分享链接不用它。 */
+    private val zfRemote: ZfRemoteDataSource = ZfRemoteDataSource(),
     private val cache: TimetableCache? = null,
     /** 缓存发生变化时的回调，用于让设置页刷新缓存占用显示。 */
     private val onCacheChanged: (() -> Unit)? = null,
@@ -166,7 +169,7 @@ class TimetableRepository(
         return domain
     }
 
-    /** 拉取并解析课表；成功时写入内存与磁盘缓存。 */
+    /** 拉取并解析课表（旧分享链接）；成功时写入内存与磁盘缓存。 */
     suspend fun refresh(source: String, baseUrl: String? = null): SyncResult {
         val resolvedBase = baseUrl?.takeIf { it.isNotBlank() } ?: WakeupApiFactory.DEFAULT_BASE_URL
         val result = try {
@@ -174,26 +177,76 @@ class TimetableRepository(
         } catch (error: Exception) {
             SyncResult.Failure(error.message ?: "网络请求失败", error)
         }
+        return adoptSuccess(result, remote.urlFor(source, resolvedBase))
+    }
 
-        if (result is SyncResult.Success) {
-            val url = remote.urlFor(source, resolvedBase)
-            val domain = try {
-                TimetableMapper.toDomain(result.response, sourceUrl = url)
-            } catch (error: Exception) {
-                return SyncResult.Failure(error.message ?: "课表数据无法识别", error)
-            }
-            val now = System.currentTimeMillis()
-            cached = domain
-            cachedPayload = result.rawPayload
-            cachedSourceUrl = url
-            lastSyncedAt = now
-            lastUser = result.response.user
-            usingCache = false
-            cache?.save(
-                CachedTimetable(sourceUrl = url, payload = result.rawPayload, syncedAt = now),
-            )
-            onCacheChanged?.invoke()
+    /**
+     * 拉取并解析课表（新教务系统，需要登录会话）；成功时写入内存与磁盘缓存。
+     *
+     * 与 [refresh] 的区别只在"怎么拿到页面"：正方要带 Cookie 抓 HTML 再解析，
+     * 解析结果同样转成 [com.wakeup.data.model.TimetableResponse]，所以缓存与领域映射完全复用。
+     *
+     * 会话失效时返回 `needsLogin = true` 的失败结果，界面据此弹登录页。
+     *
+     * @param termStartEpochSeconds 学期第一周周一的时间戳（秒）；null 时由页面"当前周"反推。
+     */
+    suspend fun refreshZf(
+        baseUrl: String,
+        path: String,
+        cookie: String,
+        termStartEpochSeconds: Long? = null,
+    ): SyncResult {
+        // 优先"按周遍历"：教务系统的个人中心是一周一渲染的，逐周取再合并才能拿到准确周次
+        val weekly = try {
+            zfRemote.fetchWeekly(baseUrl, cookie, termStartEpochSeconds)
+        } catch (error: Exception) {
+            SyncResult.Failure(error.message ?: "网络请求失败", error)
         }
+        val result = when {
+            weekly is SyncResult.Success -> weekly
+            // 需要登录就直接返回，别用单页抓取再失败一次（会把"重新登录"变成普通错误）
+            weekly is SyncResult.Failure && weekly.needsLogin -> weekly
+            // 页面改版 / 换周接口变化时退回单页解析；两者都失败时返回**更具体**的那条错误
+            else -> {
+                val single = try {
+                    zfRemote.fetch(baseUrl, path, cookie, termStartEpochSeconds)
+                } catch (error: Exception) {
+                    SyncResult.Failure(error.message ?: "网络请求失败", error)
+                }
+                if (single is SyncResult.Success) {
+                    single
+                } else {
+                    val weeklyMessage = (weekly as? SyncResult.Failure)?.message.orEmpty()
+                    if (weeklyMessage.isNotBlank()) {
+                        SyncResult.Failure(weeklyMessage, (weekly as? SyncResult.Failure)?.cause)
+                    } else {
+                        single
+                    }
+                }
+            }
+        }
+        return adoptSuccess(result, zfRemote.timetableUrl(baseUrl, path))
+    }
+
+    /** 成功后统一落库：内存 + 磁盘缓存 + 同步时间。两种来源共用。 */
+    private suspend fun adoptSuccess(result: SyncResult, sourceUrl: String): SyncResult {
+        if (result !is SyncResult.Success) return result
+        val domain = try {
+            TimetableMapper.toDomain(result.response, sourceUrl = sourceUrl)
+        } catch (error: Exception) {
+            return SyncResult.Failure(error.message ?: "课表数据无法识别", error)
+        }
+        val now = System.currentTimeMillis()
+        cached = domain
+        cachedPayload = result.rawPayload
+        cachedSourceUrl = sourceUrl
+        lastSyncedAt = now
+        lastUser = result.response.user
+        usingCache = false
+        cache?.save(
+            CachedTimetable(sourceUrl = sourceUrl, payload = result.rawPayload, syncedAt = now),
+        )
+        onCacheChanged?.invoke()
         return result
     }
 

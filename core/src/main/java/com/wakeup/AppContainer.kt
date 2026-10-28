@@ -5,6 +5,7 @@ import com.wakeup.data.cache.TimetableCache
 import com.wakeup.data.remote.TimetableRemoteDataSource
 import com.wakeup.data.repository.SettingsRepository
 import com.wakeup.data.repository.TimetableRepository
+import com.wakeup.data.session.ZfSessionStore
 
 /**
  * 应用级依赖容器。
@@ -20,6 +21,9 @@ class AppContainer(context: Context) {
     val appContext: Context = context.applicationContext
 
     val settingsRepository: SettingsRepository = SettingsRepository(appContext)
+
+    /** 新教务系统（正方）的登录会话；与课表缓存分开存，清缓存不会踢掉登录。 */
+    val zfSessionStore: ZfSessionStore = ZfSessionStore(appContext)
 
     val timetableRepository: TimetableRepository = TimetableRepository(
         remote = TimetableRemoteDataSource(),

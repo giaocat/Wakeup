@@ -7,6 +7,7 @@ import com.wakeup.AppContainer
 import com.wakeup.data.remote.SyncResult
 import com.wakeup.data.remote.WakeupApiFactory
 import com.wakeup.data.remote.tokenToTimetableUrl
+import com.wakeup.data.repository.TimetableSourceKind
 import com.wakeup.data.repository.UserSettings
 import com.wakeup.domain.Course
 import com.wakeup.domain.Timetable
@@ -104,13 +105,19 @@ class WearViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    /** 先用缓存铺一屏，再联网同步。 */
+    /** 先用缓存铺一屏；缓存够新就不联网，省手表电。 */
     private suspend fun bootstrap(settings: UserSettings) {
         if (!settings.hasSource) return
-        if (container.timetableRepository.restoreFromCacheNow(settings.timetableUrl)) {
+        val restored = container.timetableRepository.restoreFromCacheNow(settings.timetableUrl)
+        if (restored) {
             container.timetableRepository.cachedTimetable()?.let { applyTimetable(it) }
         }
-        syncWith(settings)
+        // 手表电池比手机金贵：启动时如果拿到的缓存还在 [CACHE_FRESH_MS] 内，就不发网络请求，
+        // 等用户手动刷新、或手机端推来新课表（Data Layer）再说。
+        val cachedAt = container.timetableRepository.lastSyncedAt
+        val fresh = restored && cachedAt > 0L &&
+            System.currentTimeMillis() - cachedAt < CACHE_FRESH_MS
+        if (!fresh) syncWith(settings)
     }
 
     /** 手动刷新（设置页 / 下拉重试）。 */
@@ -120,6 +127,16 @@ class WearViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     private suspend fun syncWith(settings: UserSettings) {
+        // 手表上没有浏览器，登录不了新教务系统：这类数据一律由手机同步后推过来。
+        if (settings.sourceKind == TimetableSourceKind.ZF_LOGIN) {
+            _state.update {
+                it.copy(
+                    isLoading = false,
+                    error = if (it.hasData) null else "课表由手机同步：请在手机上登录教务系统并同步一次",
+                )
+            }
+            return
+        }
         if (!settings.hasSource) {
             _state.update { it.copy(isLoading = false, error = null) }
             return
@@ -236,6 +253,14 @@ class WearViewModel(private val container: AppContainer) : ViewModel() {
     companion object {
         /** 对时周期：一分钟一次，够跨天及时发现，也不明显耗电。 */
         private const val CLOCK_TICK_MS: Long = 60_000L
+
+        /**
+         * 启动时认为缓存"还新鲜"的时长。
+         *
+         * 课表一天最多变一两次，手表每次打开都联网既慢又费电；6 小时内直接用缓存，
+         * 需要最新数据可以手动刷新，或者靠手机端同步后推过来。
+         */
+        private const val CACHE_FRESH_MS: Long = 6L * 60 * 60 * 1000
 
         fun factory(container: AppContainer): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {

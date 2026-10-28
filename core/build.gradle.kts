@@ -17,7 +17,7 @@ plugins {
  */
 android {
     namespace = "com.wakeup.core"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         // 与 :app 保持一致（minSdk 23），保证两端可用的 Java/Android API 相同
@@ -63,4 +63,7 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
     implementation(libs.kotlinx.serialization.json)
+
+    // 数据层里的纯逻辑（正方课表 HTML 解析、星期/周次换算等）必须能脱离设备单测
+    testImplementation(libs.junit)
 }

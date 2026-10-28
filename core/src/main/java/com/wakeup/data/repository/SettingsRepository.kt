@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.wakeup.data.remote.WakeupApiFactory
+import com.wakeup.data.remote.ZfRemoteDataSource
 import com.wakeup.data.remote.ensureTrailingSlash
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -49,9 +50,19 @@ data class UserSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     /** 课表底部隐藏"未排课"课程。 */
     val hideUnscheduled: Boolean = false,
-    /** 上课前提醒（预留，功能后续接入）。 */
-    val reminderEnabled: Boolean = false,
-    val reminderMinutes: Int = 15,
+    /** 课表数据来源：新教务系统（登录）还是旧的分享页 token。 */
+    val sourceKind: TimetableSourceKind = TimetableSourceKind.ZF_LOGIN,
+    /** 新教务系统地址（正方）。 */
+    val zfBaseUrl: String = ZfRemoteDataSource.DEFAULT_BASE_URL,
+    /** 新教务系统的课表页路径；各校部署可能不同，所以可改。 */
+    val zfTimetablePath: String = ZfRemoteDataSource.DEFAULT_PATH,
+    /**
+     * 学期第一周周一的日期（`2026-08-24`）。
+     *
+     * 正方页面只给"第几周"、不给开学日期，缺了它就没法把周次落到真实日期上。
+     * 留空时会尝试用页面里的"当前周"反推。
+     */
+    val zfTermStartDate: String = "",
 ) {
     /** 是否已经配置过课表来源。 */
     val hasSource: Boolean get() = timetableUrl.isNotBlank()
@@ -81,8 +92,10 @@ class SettingsRepository(private val context: Context) {
                 dynamicColor = preferences[KEY_DYNAMIC_COLOR] ?: true,
                 themeMode = ThemeMode.fromName(preferences[KEY_THEME_MODE]),
                 hideUnscheduled = preferences[KEY_HIDE_UNSCHEDULED] ?: false,
-                reminderEnabled = preferences[KEY_REMINDER_ENABLED] ?: false,
-                reminderMinutes = (preferences[KEY_REMINDER_MINUTES] ?: DEFAULT_REMINDER_MINUTES.toLong()).toInt(),
+                sourceKind = TimetableSourceKind.fromName(preferences[KEY_SOURCE_KIND]),
+                zfBaseUrl = preferences[KEY_ZF_BASE_URL] ?: ZfRemoteDataSource.DEFAULT_BASE_URL,
+                zfTimetablePath = preferences[KEY_ZF_PATH] ?: ZfRemoteDataSource.DEFAULT_PATH,
+                zfTermStartDate = preferences[KEY_ZF_TERM_START].orEmpty(),
             )
         }
 
@@ -111,9 +124,15 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setHideUnscheduled(hidden: Boolean) = edit { it[KEY_HIDE_UNSCHEDULED] = hidden }
 
-    suspend fun setReminderEnabled(enabled: Boolean) = edit { it[KEY_REMINDER_ENABLED] = enabled }
+    suspend fun setSourceKind(kind: TimetableSourceKind) = edit { it[KEY_SOURCE_KIND] = kind.name }
 
-    suspend fun setReminderMinutes(minutes: Int) = edit { it[KEY_REMINDER_MINUTES] = minutes.toLong() }
+    suspend fun setZfBaseUrl(baseUrl: String) = edit { it[KEY_ZF_BASE_URL] = baseUrl.trim().trimEnd('/') }
+
+    suspend fun setZfTimetablePath(path: String) =
+        edit { it[KEY_ZF_PATH] = path.trim().let { value -> if (value.startsWith("/")) value else "/$value" } }
+
+    suspend fun setZfTermStartDate(date: String) = edit { it[KEY_ZF_TERM_START] = date.trim() }
+
 
     /** 上次成功检查更新的时间戳（毫秒）。0 表示从未检查过。 */
     val lastUpdateCheckAt: Flow<Long> = context.dataStore.data
@@ -136,11 +155,12 @@ class SettingsRepository(private val context: Context) {
         val KEY_DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
         val KEY_HIDE_UNSCHEDULED = booleanPreferencesKey("hide_unscheduled")
-        val KEY_REMINDER_ENABLED = booleanPreferencesKey("reminder_enabled")
-        val KEY_REMINDER_MINUTES = longPreferencesKey("reminder_minutes")
+        val KEY_SOURCE_KIND = stringPreferencesKey("source_kind")
+        val KEY_ZF_BASE_URL = stringPreferencesKey("zf_base_url")
+        val KEY_ZF_PATH = stringPreferencesKey("zf_timetable_path")
+        val KEY_ZF_TERM_START = stringPreferencesKey("zf_term_start")
 
         /** 上次成功检查更新的时间戳（毫秒）。 */
         val KEY_LAST_UPDATE_CHECK = longPreferencesKey("last_update_check_at")
-        const val DEFAULT_REMINDER_MINUTES = 15
     }
 }

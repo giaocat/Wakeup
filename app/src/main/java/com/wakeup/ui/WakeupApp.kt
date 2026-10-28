@@ -35,10 +35,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.layout.WindowLayoutInfo
+import com.wakeup.data.repository.TimetableSourceKind
 import com.wakeup.domain.Course
 import com.wakeup.ui.adaptive.rememberAdaptiveWindowInfo
 import com.wakeup.ui.components.CourseDetailSheet
 import com.wakeup.ui.components.UpdateDialog
+import com.wakeup.ui.login.ZfLoginScreen
 import com.wakeup.ui.schedule.ScheduleScreen
 import com.wakeup.ui.settings.SettingsScreen
 import com.wakeup.ui.today.TodayScreen
@@ -120,6 +122,17 @@ fun WakeupApp(
         viewModel.dismissError()
     }
 
+    // 新教务系统需要登录：直接盖一层应用内登录页，登录成功后才继续同步。
+    // 用整屏覆盖而不是对话框：登录页本身要滚验证码/扫码，小窗不够用。
+    if (schedule.needsZfLogin && schedule.sourceKind == TimetableSourceKind.ZF_LOGIN) {
+        ZfLoginScreen(
+            baseUrl = settings.zfBaseUrl,
+            onLoggedIn = viewModel::onZfLoggedIn,
+            onCancel = viewModel::dismissZfLogin,
+        )
+        return
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -172,6 +185,10 @@ fun WakeupApp(
                     cacheSizeBytes = cacheSizeBytes,
                     onTimetableUrlChange = viewModel::updateTimetableUrl,
                     onBaseUrlChange = viewModel::updateBaseUrl,
+                    onSourceKindChange = viewModel::setSourceKind,
+                    onZfLogin = viewModel::requestZfLogin,
+                    onZfLogout = viewModel::logoutZf,
+                    onZfTermStartChange = viewModel::setZfTermStartDate,
                     onThemeModeChange = viewModel::setThemeMode,
                     onDynamicColorChange = viewModel::setDynamicColor,
                     onHideUnscheduledChange = viewModel::setHideUnscheduled,

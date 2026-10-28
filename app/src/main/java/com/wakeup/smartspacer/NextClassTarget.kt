@@ -13,10 +13,7 @@ import com.kieronquinn.app.smartspacer.sdk.utils.TargetTemplate
 import com.wakeup.MainActivity
 import com.wakeup.R
 import com.wakeup.appContainer
-import com.wakeup.domain.Term
-import com.wakeup.domain.nextOccurrence
-import com.wakeup.domain.subtitle
-import java.time.LocalDateTime
+import com.wakeup.domain.NextClassPresenter
 
 /**
  * Smartspacer 的 Target：在桌面/锁屏的「一览」里显示**下一节课**。
@@ -36,8 +33,10 @@ class NextClassTarget : SmartspacerTargetProvider() {
             context.appContainer.timetableRepository.timetableForDisplay()
         }.getOrNull() ?: return emptyList()
 
-        val now = LocalDateTime.now(Term.TERM_ZONE)
-        val occurrence = timetable.nextOccurrence(now) ?: return emptyList()
+        // 文案与表盘复杂功能、信息块、今日页共用 :core 的 NextClassPresenter，
+        // 四个展示端不会各写一套而出现内容对不上
+        val presentation = NextClassPresenter.present(timetable)
+        if (!presentation.hasClass) return emptyList()
 
         val icon = SmartspacerIcon(
             icon = AndroidIcon.createWithResource(context, R.drawable.ic_smartspacer_class),
@@ -50,8 +49,8 @@ class NextClassTarget : SmartspacerTargetProvider() {
                 // ID 里带上 smartspacerId：同一个 Target 被添加多次时也要彼此独立
                 id = "next_class_$smartspacerId",
                 componentName = ComponentName(context, NextClassTarget::class.java),
-                title = Text(occurrence.name),
-                subtitle = Text(occurrence.subtitle(now.toLocalDate(), now.toLocalTime())),
+                title = Text(presentation.courseName),
+                subtitle = Text(presentation.description),
                 icon = icon,
                 onClick = TapAction(
                     intent = Intent(context, MainActivity::class.java).apply {

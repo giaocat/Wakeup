@@ -10,7 +10,17 @@ sealed interface SyncResult {
         val rawPayload: String,
     ) : SyncResult
 
-    data class Failure(val message: String, val cause: Throwable? = null) : SyncResult
+    /**
+     * 同步失败。
+     *
+     * [needsLogin] 为 true 表示"需要用户重新登录教务系统"（会话缺失 / 过期 / 被踢），
+     * 界面据此弹出登录页，而不是只显示一条普通错误。
+     */
+    data class Failure(
+        val message: String,
+        val cause: Throwable? = null,
+        val needsLogin: Boolean = false,
+    ) : SyncResult
 }
 
 /**

@@ -35,7 +35,27 @@ jobs:
             SDKMANAGER="$(find "${ANDROID_HOME}/cmdline-tools" -name sdkmanager -type f 2>/dev/null | head -n 1)"
           fi
           yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
-          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+          # compileSdk 37：36 之后官方改成 minor 版本线（android-37.0 / 37.1 / 37.2），
+          # 这里装 37.0，与本地 / gradle 脚本里声明的平台保持一致
+          "$SDKMANAGER" "platforms;android-37.0" "build-tools;37.0.0" "platform-tools"
+
+      # 标签与代码里声明的版本必须一致：否则会发布出"标签 v1.0.9、APK 里是 1.0.8"的包。
+      # 版本号单点定义在 gradle/libs.versions.toml 的 appVersionName。
+      - name: Check tag matches the declared version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -e
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          DECLARED="$(grep -E '^appVersionName' gradle/libs.versions.toml | head -n 1 | sed -E 's/.*"([^"]+)".*/\1/')"
+          echo "tag=v${TAG_VERSION} declared=${DECLARED}"
+          if [ -z "${DECLARED}" ]; then
+            echo "::error::gradle/libs.versions.toml 里找不到 appVersionName"
+            exit 1
+          fi
+          if [ "${TAG_VERSION}" != "${DECLARED}" ]; then
+            echo "::error::标签 v${TAG_VERSION} 与 libs.versions.toml 的 appVersionName=${DECLARED} 不一致"
+            exit 1
+          fi
 
       # 固定发布密钥：保证每次构建签出来的证书一致，用户才能覆盖安装。
       # 四个 Secret 缺失时构建会直接失败（见 app/build.gradle.kts），不会静默用调试密钥。
@@ -115,7 +135,8 @@ jobs:
           if-no-files-found: error
 
       # 发布说明来自 CHANGELOG.md 里对应版本的段落（`## X.Y.Z`，不带 v）。
-      # 这样每次 release 都有手写好的更新日志，而不是提交标题堆砌。
+      # **找不到就直接失败**：发布说明是这个项目唯一的用户向变更记录，
+      # 缺了它就不该发版（以前的兜底"退回自动提交列表"等于默认允许漏写）。
       - name: Extract changelog
         id: changelog
         if: startsWith(github.ref, 'refs/tags/v')
@@ -124,37 +145,25 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           OUT="${RUNNER_TEMP}/release-notes.md"
           : > "$OUT"
-          if [ -f CHANGELOG.md ]; then
-            awk -v ver="$VERSION" '
-              $0 ~ "^##[[:space:]]+" ver "([[:space:]]|$)" { found=1; next }
-              found && /^##[[:space:]]/ { exit }
-              found { print }
-            ' CHANGELOG.md > "$OUT"
-          fi
+          awk -v ver="$VERSION" '
+            $0 ~ "^##[[:space:]]+" ver "([[:space:]]|$)" { found=1; next }
+            found && /^##[[:space:]]/ { exit }
+            found { print }
+          ' CHANGELOG.md > "$OUT"
           if [ -s "$OUT" ]; then
-            echo "found=true" >> "$GITHUB_OUTPUT"
             echo "path=$OUT" >> "$GITHUB_OUTPUT"
             echo "已找到 CHANGELOG.md 中 $VERSION 的条目："
             cat "$OUT"
           else
-            echo "found=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::CHANGELOG.md 里没有 $VERSION 的条目，将退回自动生成的提交列表"
+            echo "::error::CHANGELOG.md 里没有 $VERSION 的段落；发版前必须先写好更新日志"
+            exit 1
           fi
 
-      - name: Publish GitHub Release (使用 CHANGELOG)
-        if: startsWith(github.ref, 'refs/tags/v') && steps.changelog.outputs.found == 'true'
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*.apk
           body_path: ${{ steps.changelog.outputs.path }}
           generate_release_notes: false
-          draft: false
-
-      # 兜底：没写 CHANGELOG 段落时不要让发布失败，退回自动生成的提交列表
-      - name: Publish GitHub Release (自动生成的提交列表)
-        if: startsWith(github.ref, 'refs/tags/v') && steps.changelog.outputs.found != 'true'
-        uses: softprops/action-gh-release@v2
-        with:
-          files: dist/*.apk
-          generate_release_notes: true
           draft: false

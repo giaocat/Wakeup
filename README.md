@@ -4,7 +4,7 @@
 用 **Jetpack**（Compose / ViewModel / DataStore / Retrofit+OkHttp）与 **Material 3 Expressive（M3E）** 实现，
 应用包名为 `com.wakeup`。
 
-当前版本 **1.0.8**（`versionCode` 9）：手机端（`:app`）与手表端（`:wear`）同版本号，
+当前版本 **1.2.0**（`versionCode` 11）：手机端（`:app`）与手表端（`:wear`）同版本号，
 但**各自一个 APK**；两端共用 `:core` 数据层，手机同步成功后会自动把课表推给手表。
 手表端见[第四节](#四手表端wear-os)。
 
@@ -16,7 +16,11 @@
 表盘上能直接看到「下一节课」，表盘左滑能看到今天与后几门课。
 
 数据来源：教务通的课表分享页，形如 `https://sutjwt.sut.edu.cn/user/kb/table/token/<token>`。
-**App 不绑定任何一份具体课表**，token 在「设置」里填写。
+
+> **1.2.0 起默认换成新教务系统**（`https://jwxt.sut.edu.cn/jsxsd/...`，强智「教学一体化服务平台」）：
+> 旧分享接口目前服务端返回 `系统繁忙`，所以默认走新源、旧源保留为可选。
+> 新源需要**在应用内登录一次**（登录页带图形验证码/扫码，没法后台静默登录），
+> 之后用保存的会话 Cookie 同步；详见[第二节](#二数据源与登录)。
 
 ---
 
@@ -32,7 +36,7 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 - **JDK**：17 及以上（Android Studio 自带的 JBR 25 可用）
 - **Gradle**：9.6.0（由 `gradle/wrapper` 指定，首次构建自动下载）
 - **AGP**：9.4.1，**Kotlin**：2.2.10（AGP 9 自带 Kotlin 支持，无需再声明 `kotlin.android` 插件）
-- **compileSdk / targetSdk**：36，**minSdk**：**23**（手机端，Android 6.0；手表端 `:wear` 为 **26**，见第四节）
+- **compileSdk / targetSdk**：**37**，**minSdk**：**23**（手机端，Android 6.0；手表端 `:wear` 为 **26**，见第四节）
 - **包名**：`com.wakeup`（debug 构建为 `com.wakeup.debug`）
 
 > **minSdk 为什么停在 23 / 26？**
@@ -45,14 +49,12 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 > 顺带：`m3-adaptive` 没有用到，且它会把手机端 minSdk 顶到 24，因此没有引入；
 > 大屏 / 折叠屏适配是手写的 `WindowSizeClass` + `FoldingFeature`（见第五节）。
 
-> **为什么是 compileSdk 36 而不是 37？**
-> Google 公开的 SDK 仓库（`repository2-3.xml`）目前最高只提供 `platforms;android-36`，
-> `android-37` 仍在 preview 频道，CI 上无法用 `sdkmanager` 安装。
-> 因此依赖版本也统一控制在 `minCompileSdk <= 36`：
-> `material3 1.5.0-alpha01`（仍是带 Material 3 Expressive API 且 `minCompileSdk=35` 的版本，
-> `1.5.0-alpha29` 起升到 37）、`compose-bom 2026.06.01`、`navigation-compose 2.9.8`、
-> `lifecycle 2.10.0`、`core-ktx 1.18.0`。
-> 等 android-37 进入稳定仓库后，把这些版本一起提上去即可。
+> **compileSdk / targetSdk 为什么是 37？**
+> 37 已经是公开 SDK 仓库里的**稳定平台**（36 之后官方改成 minor 版本线：
+> `platforms;android-37.0 / 37.1 / 37.2`，不再是 preview 频道），`sdkmanager` 能直接装，
+> CI 与本机一致。本地/CI 都需要：`platforms;android-37.0` + `build-tools;37.0.0`。
+> 依赖仍然可以按需升级——当年为了 `minCompileSdk <= 36` 钉住的 `material3`、`wear compose`
+> 等版本，可以之后再逐批验证升级（它们现在的版本仍然兼容 37，所以这次没有强制跟升）。
 
 安装包产物（debug）：
 
@@ -63,8 +65,39 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 
 ```powershell
 .\gradlew.bat clean assembleDebug testDebugUnitTest lintDebug
-# => BUILD SUCCESSFUL，单元测试 83/83 通过，lint 0 error
+# => BUILD SUCCESSFUL，单元测试 101/101 通过，lint 0 error
 ```
+
+### 数据源与登录（1.2.0）
+
+「设置 → 课表来源」里二选一，**默认是新的教务系统**（旧分享接口目前服务端报错，先不用它）：
+
+| 数据源 | 地址 | 需要登录 | 说明 |
+| --- | --- | --- | --- |
+| 教务系统（默认） | `https://jwxt.sut.edu.cn/jsxsd/...` | ✅ 一次 | 强智「教学一体化服务平台」，登录页带图形验证码/扫码 |
+| 分享链接（备用） | `https://sutjwt.sut.edu.cn/user/kb/table/token/<token>` | ❌ | 旧方式，接口恢复后仍可用 |
+
+新源的同步流程：
+
+1. 首次点「刷新」→ 应用内弹出学校登录页 → 输账号 + 验证码（或扫码）登录；
+2. 登录成功后 App 从 WebView 取出会话 Cookie，保存到 `filesDir/wakeup/zf_session.json`；
+3. 之后抓「学期理论课表」`https://jwxt.sut.edu.cn/jsxsd/xskb/xskb_list.do?Ves632DSdyV=NEW_XSD_PYGL`
+   （路径在设置里可改），解析出课表并缓存；会话过期（服务端跳回登录页）时提示重新登录。
+
+几个实现上的取舍：
+
+- **为什么不后台用账号密码自动登录**：这套系统的登录页有**图形验证码**（`RANDOMCODE` + `/jsxsd/verifycode.servlet`）
+  和扫码登录，后端无法静默登录；强智另有 `app.do?method=authUser/getKbcxAzc` 的 JSON 接口，
+  但**本校实例没有开放**（实测返回「出错页面」并跳 `Logon.do`），所以只能走"登录一次 + Cookie"。
+- **为什么默认抓 `xskb_list.do` 而不是个人中心**：个人中心 `xsMain.jsp` 的课表是**按当前周**渲染的
+  （`第10周 / 20周`，单元格只写 `第10周 星期一 [01-02]节`），拿不到整学期的周次范围；
+  「学期理论课表」`xskb_list.do` 才有 `{第1-16周}` 这种完整信息。
+  两页都支持：个人中心的解析见 `ZfRealPageTest`，识别 `第一二节(01,02小节)` 这类两节连排，
+  以及 `title` 里的 `课程名称：/上课时间：/上课地点：`（页面上课程名是 CSS 截断的）。
+- **周次怎么变成日期**：页面给的周次需要开学日期才能落到真实日期，所以要么填「开学第一周周一」，
+  要么让解析器按页面里的当前周反推；反推不准时在设置里手填即可。
+- **隐私**：会话 Cookie 只存在应用私有目录，只在抓课表时作为请求头发出去，不写日志、不上传；
+  设置页可以「退出」清掉会话，清课表缓存不会踢掉登录。
 
 ### 自动构建（GitHub Actions）
 
@@ -78,19 +111,20 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 发布一个版本：
 
 1. **先在 [`CHANGELOG.md`](CHANGELOG.md) 里写好本版段落** —— 新增一个 `## X.Y.Z`（不带 `v`，
-   与 `versionName` 一致），只写用户能感知的变化；
-2. 升 `app/build.gradle.kts` **和** `wear/build.gradle.kts` 里的 `versionCode` / `versionName`
-   （两端保持同版本号）；
+   与 `appVersionName` 一致），只写用户能感知的变化；
+2. 改 `gradle/libs.versions.toml` 里的 `appVersionName` / `appVersionCode`
+   （**版本号只在这一处维护**，`:app` 与 `:wear` 都从这里读）；
 3. 打标签并推送：
 
 ```bash
-git tag v1.0.8
-git push origin v1.0.8
+git tag v1.1.0
+git push origin v1.1.0
 ```
 
-> **发布说明自动取自 `CHANGELOG.md`**：`release.yml` 会按标签名切出对应的 `## X.Y.Z` 段落，
-> 作为 Release 的说明文本（找不到段落时退回「自动生成的提交列表」，不会让发布失败）。
-> 所以每次 release 都是手写好的更新日志，而不是提交标题堆砌。
+> **发布说明取自 `CHANGELOG.md`**：`release.yml` 会按标签名切出对应的 `## X.Y.Z` 段落作为 Release 正文。
+> 发版流程现在会**失败**（而不是降级）于两种情况：
+> 标签版本与 `libs.versions.toml` 的 `appVersionName` 不一致、或 CHANGELOG 里没有该版本段落。
+> 这是有意的：缺了手写更新日志就不该发版。
 
 > 发布需要**固定签名密钥**，配置见「十一、发布与签名」。缺配置时 CI 会直接失败，
 > 而不是静默产出一个用临时调试密钥签名的包（那种包无法覆盖安装）。
@@ -278,8 +312,8 @@ adb install -r wakeup-wear-1.0.8.apk
 
 - **手表端 API 26 及以上**（`:wear` 的 `minSdk = 26`）：表盘复杂功能库要求 26；
   实际体验以 **Wear OS 3 / API 30** 为准。
-- **手表能联网，或与手机配对**：手表可以自己联网抓课表；配对了手机时，
-  手机每次同步成功会自动把课表推给手表（见下面「与手机端的关系」），
+- **手表能联网，或与手机配对**：旧分享链接模式下手表可以自己联网抓课表；用**新教务系统**时手表无法登录，
+  必须和手机配对、由手机登录并同步一次（手机同步成功后会自动把课表推给手表，见下面「与手机端的关系」），
   手表即使暂时没网也能显示手机同步下来的那份。
 - 手机端 `minSdk = 23`（Android 6.0）。
 
@@ -464,7 +498,7 @@ wear/src/main/java/com/wakeup/wear/ # 手表端
 示例数据里的课程、教师、学生（甲/乙/丙… 老师、测试同学）全部是虚构的，
 字段名与真实页面一致。要换成自己的数据，直接替换该文件中的课程条目即可。
 
-另外五个测试文件：
+另外七个测试文件：
 
 | 文件 | 覆盖内容 |
 | --- | --- |
@@ -473,8 +507,12 @@ wear/src/main/java/com/wakeup/wear/ # 手表端
 | `NextClassTest.kt` | 「下一节课」推导：正在上课、当天已上完顺延、跨周次与假期、G/F 座提前时间与外校来源、展示文案 |
 | `ScheduleHeaderTest.kt` | 表头月份标签：跟随展示中的周次、跨月显示两个月、跨年顺序（12 月在前）、空输入 |
 | `sync/TimetableSyncCodecTest.kt` | 手机→手表同步用的 gzip+Base64 编解码：中文多 KB 往返、确定性、坏 Base64 / 非 gzip / 截断 / 非 UTF-8 一律返回 null、90 KB 上限边界 |
+| `NextClassPresenterTest.kt` | 「下一节课」四端共用文案：短文本截断、正在上课措辞、明天前缀、教室为空、无课/未同步兜底、预览数据固定、信息块行格式 |
+| `adaptive/SplitMathTest.kt` | 折叠屏分栏位置计算：折叠线在中间、容器有偏移、折叠线贴边、折叠线太靠后、容器未布局、折痕无厚度、最小分栏边界 |
+| `:core` → `ZfTimetableParserTest.kt` | 强智「我的课表」页面解析：两节连排的中文节次、`(01,02小节)`、`title` 里的教师/周次/教室、单双周过滤、`第10周/20周`、登录页识别、`kblist` 兜底 |
 
-当前共 **83 个测试**（17 + 22 + 13 + 16 + 6 + 9），`.\gradlew.bat testDebugUnitTest` 全部通过。
+当前共 **112 个测试**（app 101：17 + 22 + 13 + 16 + 6 + 9 + 11 + 7；core 11：教务系统页面解析），
+`.\gradlew.bat testDebugUnitTest`（或 `:app:testDebugUnitTest :core:testDebugUnitTest`）全部通过。
 
 ### 安装到设备
 
@@ -766,6 +804,8 @@ apksigner verify --print-certs wear/build/outputs/apk/release/wear-release.apk
 
 - 课表数据来自教务系统，具体课程请遵循所在学院实际安排。
 - 代码与文档里**不含任何真实课表 token**：示例值统一是占位的 `100000`。
+- 本项目以 **MIT 许可证**发布（见 [`LICENSE`](LICENSE)）；参与开发前请先看
+  [`CONTRIBUTING.md`](CONTRIBUTING.md)（环境、模块分工、文案单点等约定、发版流程）。
 - App 不内置任何示例课表；`app/src/test/resources/timetable_payload.json` 是构造的测试数据，
   不会打进 APK。
 - `ui/schedule/SchedulePreview.kt` 里的预览数据同样是虚构的，只服务于 Android Studio 预览。

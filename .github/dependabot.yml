@@ -1,0 +1,31 @@
+# 依赖更新检查：Gradle 依赖与 GitHub Actions 都按周扫一次，开 PR 而不是直接改。
+# 只在 minor / patch 级别自动提 PR；大版本（可能带破坏性变更）手动处理。
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # AndroidX / Compose 一起升，避免版本互相不兼容的单条 PR
+      androidx:
+        patterns:
+          - "androidx.*"
+      kotlin:
+        patterns:
+          - "org.jetbrains.kotlin*"
+    ignore:
+      # 这几个版本卡在 compileSdk / minSdk 的硬性约束上，人工评估后再动：
+      #   material3 固定在带 Material 3 Expressive API 的版本线
+      #   wear compose 固定在 minCompileSdk <= 37 的版本
+      - dependency-name: "androidx.compose.material3:material3"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "androidx.wear.compose:*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3

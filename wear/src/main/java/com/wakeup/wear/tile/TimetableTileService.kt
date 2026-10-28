@@ -15,8 +15,9 @@ import androidx.wear.tiles.TileService
 import com.google.common.util.concurrent.ListenableFuture
 import com.wakeup.appContainer
 import com.wakeup.domain.Course
+import com.wakeup.domain.NextClassPresenter
 import com.wakeup.domain.Timetable
-import com.wakeup.domain.nextOccurrence
+import com.wakeup.domain.dayLabel
 import com.wakeup.util.TimeUtils
 import com.wakeup.wear.MainActivity
 import java.time.LocalDate
@@ -93,7 +94,7 @@ class TimetableTileService : TileService() {
             )
             rows += spacer(4f)
             rows += text(
-                nextClassLine(timetable, today),
+                nextClassLine(timetable),
                 NEXT_CLASS_SP,
                 LayoutElementBuilders.FONT_WEIGHT_BOLD,
                 COLOR_PRIMARY,
@@ -150,25 +151,26 @@ class TimetableTileService : TileService() {
             .build()
     }
 
-    /** 下一节课一行：`下一节 10:15 高等数学 · F-105`；最近一周都没课时 `今天没有课`。 */
-    private fun nextClassLine(timetable: Timetable, today: LocalDate): String {
-        val occurrence = runCatching { timetable.nextOccurrence() }.getOrNull() ?: return "今天没有课"
-        val clock = formatClock(occurrence.start)
-        val room = occurrence.course.location.trim()
-        // 不是今天的课就带上"明天/周三"：标题写着"今天"，光一个时间点会让人误读
-        val dayPrefix = if (occurrence.date == today) "" else occurrence.dayLabel(today) + " "
-        return if (room.isEmpty()) {
-            "下一节 $dayPrefix$clock ${occurrence.name}"
+    /**
+     * 下一节课一行：`下一节 10:15 高等数学 · F-105`；最近一周都没课时 `今天没有课`。
+     *
+     * 文案统一由 `:core` 的 [NextClassPresenter] 生成（和表盘复杂功能、Smartspacer 同源），
+     * 这里只负责补上"不是今天"时的日期前缀。
+     */
+    private fun nextClassLine(timetable: Timetable): String {
+        val presentation = runCatching { NextClassPresenter.present(timetable) }.getOrNull()
+        if (presentation == null || !presentation.hasClass) return "今天没有课"
+        // 标题写的是"今天"，如果下一节其实是明天/周三，必须把日期带上，否则会误读
+        return if (presentation.dayLabel == "今天") {
+            "下一节 ${presentation.longText}"
         } else {
-            "下一节 $dayPrefix$clock ${occurrence.name} · $room"
+            "下一节 ${presentation.dayLabel} ${presentation.longText}"
         }
     }
 
     /** 今天的一行课：`10:15 高数`；节次没有对应时间（异常数据）时返回 null 跳过。 */
-    private fun courseLine(timetable: Timetable, course: Course): String? {
-        val start = course.effectiveStartAt(timetable) ?: return null
-        return "${formatClock(start)} ${compactCourseName(course.name)}"
-    }
+    private fun courseLine(timetable: Timetable, course: Course): String? =
+        NextClassPresenter.briefLine(course, timetable)
 
     /** 信息块上的一行文字：字号 + 字重 + 颜色。 */
     private fun text(
@@ -234,19 +236,10 @@ private class CompletedListenableFuture<T>(private val value: T) : ListenableFut
 }
 
 /** `10:15`。 */
-private fun formatClock(time: LocalTime): String = "%02d:%02d".format(time.hour, time.minute)
+private fun formatClock(time: LocalTime): String = NextClassPresenter.clockOf(time)
 
 /** `周三`。 */
-private fun weekdayLabel(dayOfWeek: Int): String =
-    WEEKDAY_LABELS.getOrElse(dayOfWeek - 1) { "周?" }
-
-/** 信息块一行放不下长课程名：`高等数学` 原样保留，太长的取前 8 字 + `…`。 */
-private fun compactCourseName(name: String, maxLength: Int = COURSE_NAME_MAX_LENGTH): String {
-    val compact = name.trim()
-    return if (compact.length <= maxLength) compact else compact.take(maxLength) + "…"
-}
-
-private val WEEKDAY_LABELS: List<String> = listOf("周一", "周二", "周三", "周四", "周五", "周六", "周日")
+private fun weekdayLabel(dayOfWeek: Int): String = "周" + dayLabel(dayOfWeek)
 
 /** 系统重新拉取 Tile 的周期：15 分钟。 */
 private const val FRESHNESS_INTERVAL_MS: Long = 15 * 60 * 1000L
@@ -261,8 +254,6 @@ private const val BODY_SP: Float = 13f
 private const val CORNER_RADIUS_DP: Float = 20f
 private const val PADDING_HORIZONTAL_DP: Float = 12f
 private const val PADDING_VERTICAL_DP: Float = 10f
-
-private const val COURSE_NAME_MAX_LENGTH: Int = 8
 
 /** 卡片背景：接近纯黑，OLED 手表上省电也耐看。 */
 private val COLOR_BACKGROUND: Int = 0xFF141414.toInt()

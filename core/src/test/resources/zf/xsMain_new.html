@@ -1,0 +1,1022 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!-- saved from url=(0059)https://jwxt.sut.edu.cn/jsxsd/framework/xsMain_new.jsp?t1=1 -->
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><style>
+body, html{
+				width: 100%;
+				height: 100%;
+}
+.PassDiv{
+	width: 450px;
+	height: 200px;
+	position: absolute;
+	visibility: inherit;
+	z-index: 99999999;
+	right: 30%;
+	top: 35%;
+	cursor: pointer;
+	background: #FFFFFF;
+	border-style:solid;
+	border-width:1px;
+	border-color:#000;
+}
+
+</style>
+	<link type="text/css" rel="stylesheet" href="./laydate.css"><link type="text/css" rel="stylesheet" href="./laydate(1).css" id="LayDateSkin"><link href="./WdatePicker.css" rel="stylesheet" type="text/css"></head><body><div class="PassDiv" id="PassDiv" style="display: none; right: 543px; top: 310px;">
+		<div style="height: 20px"></div>
+		<table border="0" width="100%">
+			<tbody><tr>
+				<td align="center"><label style="height: 90px;font-size:30px;margin-top: 20px">您的系统密码超过90天未进行修改，请前往修改</label></td>
+			</tr>
+			<tr align="center">
+				<td><input type="button" class="button" value="确定" onclick="xgmm();" style="height: 30px;width: 80px;background: #0c80e8;margin-top: 5px;">
+					<input type="button" class="button" value="取消" onclick="qxDiv();" style="height: 30px;width: 80px;margin-top: 5px;">
+				</td>
+			</tr>
+			
+		</tbody></table>
+	</div>
+<div class="middlewap">
+	<div class="middlewapleftpart">
+		<div class="middlewapleftup">
+			<div class="middletopt l">
+				<div class="middletopttx">
+			
+			
+				<div class="circle zp" style="background-image:url(/jsxsd/grxx/xszpLoad)">
+					
+				</div>
+			
+			</div>
+			
+			<div class="middletopttxl">
+						<!--<img src="/jsxsd/grxx/xszpLoad"
+							width="100" height="100" border="0" style="height:inherit;width:40px;"
+							onerror="javasript:this.src='student/images/tx1.png';" />-->
+					<div class="middletopttxlr">
+						<div><div class="f14 blue middletopdwxxtit">&nbsp;</div><div class="middletopdwxxcont">&nbsp;</div></div>
+						<div><div class="f14 blue middletopdwxxtit">学生姓名：</div><div class="middletopdwxxcont">李青峰</div></div>
+						<div><div class="f14 blue middletopdwxxtit">学生编号：</div><div class="middletopdwxxcont">260402303</div></div>
+						<div><div class="f14 blue middletopdwxxtit">所属院系：</div><div class="middletopdwxxcont">信息科学与工程学院</div></div>
+						<div><div class="f14 blue middletopdwxxtit">专业名称：</div><div class="middletopdwxxcont">电子信息工程</div></div>
+						<div><div class="f14 blue middletopdwxxtit">班级名称：</div><div class="middletopdwxxcont">电子信息2603班</div></div>
+					</div>
+				</div>
+		</div>
+
+		
+		<script type="text/javascript" src="./jquery-min.js.下载" language="javascript"></script>
+		<script type="text/javascript" src="./common.js.下载" language="javascript"></script>
+		<script type="text/javascript" src="./iepngfix_tilebg.js.下载" language="javascript"></script>
+		
+		<link rel="stylesheet" type="text/css" href="./WdatePicker.css">
+		<link rel="stylesheet" type="text/css" href="./bootstrap.min.css">
+		<link type="text/css" rel="stylesheet" href="./css.css">
+		<link rel="stylesheet" type="text/css" href="./style.css">
+		<link rel="stylesheet" type="text/css" href="./WdatePicker.css">
+		<link href="./common.css" rel="stylesheet" type="text/css">
+
+		<script type="text/javascript" src="./ui.js.下载"></script>
+		<script type="text/javascript" src="./laydate.js.下载"></script>
+		<script type="text/javascript" src="./index.js.下载"></script>
+		<script type="text/javascript" src="./WdatePicker.js.下载"></script>
+		<div class="middletop">
+			<div class="noticetitle b">
+							我的课表
+			</div>
+			<div class="middletopleft">
+				<div class="middletopleftkb">
+					<div class="middletopleftl" style="height: 100%;">
+						
+						<div class="middletopleftrqbox" style="height: 12%;">
+							<div class=" pr5 middletopleftzc" id="li_showWeek"><span class="main_text main_color">第10周</span>/20周</div>
+							<div class="middletopleftdqrq">
+								<input type="text" id="rq" value="2026-10-28" readonly="" class="form-control" placeholder="2026-10-28">
+								<span class="input-group-addon" id="sizing-addon1" onclick="selectWdatePicker()">
+									<i class="glyphicon glyphicon-calendar"></i>
+								</span>
+							</div>
+							<div class="middletopleftdqrq" style="margin-left: 30px;color: black;">
+								时间模式：<select name="sjms" id="sjms" style="width:120px" onchange="selectWdatePicker2()">
+								
+									<option value="9568AEA6C1082FBDE0530100007F90E3">默认节次模式</option>
+								
+							</select>
+							</div>
+						</div>
+						
+						<div id="kbLoading" style="height: 88%;overflow: auto;">
+
+
+
+
+
+
+
+
+
+
+
+
+
+<form target="hideFrame" method="post" name="Form1" id="Form1" action="https://jwxt.sut.edu.cn/jsxsd/framework/xsMain_new.jsp?t1=1">
+<table class="table table-bordered table-hover table-striped kb_table" style="overflow: scroll;height: 95%;">
+	<thead>
+		<tr>
+			<th style="width: 14%;">周/节次</th>
+			
+			<th style="width: 12%;">星期一</th>
+			<th style="width: 12%;">星期二</th>
+			<th style="width: 12%;">星期三</th>
+			<th style="width: 12%;">星期四</th>
+			<th style="width: 12%;">星期五</th>
+			<th style="width: 12%;">星期六</th>
+			
+				<th style="width: 12%;">星期日</th>
+			
+		</tr>
+	</thead>
+	<tbody>
+	  
+		<tr>
+		    <td>第一二节
+					<br>(01,02小节)
+					
+			</td>
+		    
+				<td>
+					
+					<p title="课程学分：5&lt;br&gt;&lt;/p&gt;课程属性：必修&lt;br/&gt;课程名称：高等数学A（一）&lt;br/&gt;上课时间：第10周 星期一 [01-02]节&lt;br/&gt;上课地点：F-105" style="text-align: left;font-size: 12px;font-weight: bold;">高等数学A（..</p>
+				</td>
+		    
+				<td>
+					
+					<p title="课程学分：3&lt;br&gt;&lt;/p&gt;课程属性：必修&lt;br/&gt;课程名称：思想道德与法治&lt;br/&gt;上课时间：第10周 星期二 [01-02]节&lt;br/&gt;上课地点：F-208" style="text-align: left;font-size: 12px;font-weight: bold;">思想道德与法..</p>
+				</td>
+		    
+				<td>
+					
+					<p title="课程学分：3&lt;br&gt;&lt;/p&gt;课程属性：必修&lt;br/&gt;课程名称：中国近现代史纲要&lt;br/&gt;上课时间：第10周 星期三 [01-02]节&lt;br/&gt;上课地点：F-304" style="text-align: left;font-size: 12px;font-weight: bold;">中国近现代史..</p>
+				</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+				<td>
+					
+					<p title="课程学分：5&lt;br&gt;&lt;/p&gt;课程属性：必修&lt;br/&gt;课程名称：高等数学A（一）&lt;br/&gt;上课时间：第10周 星期五 [01-02]节&lt;br/&gt;上课地点：F-105" style="text-align: left;font-size: 12px;font-weight: bold;">高等数学A（..</p>
+				</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+		</tr>
+	  
+		<tr>
+		    <td>第三四节
+					<br>(03,04小节)
+					
+			</td>
+		    
+				<td>
+					
+					<p title="课程学分：3&lt;br&gt;&lt;/p&gt;课程属性：必修&lt;br/&gt;课程名称：中国近现代史纲要&lt;br/&gt;上课时间：第10周 星期一 [03-04]节&lt;br/&gt;上课地点：F-304" style="text-align: left;font-size: 12px;font-weight: bold;">中国近现代史..</p>
+				</td>
+		    
+				<td>
+					
+					<p title="课程学分：2&lt;br&gt;&lt;/p&gt;课程属性：必修&lt;br/&gt;课程名称：大学外语B（一）&lt;br/&gt;上课时间：第10周 星期二 [03-04]节&lt;br/&gt;上课地点：C-405" style="text-align: left;font-size: 12px;font-weight: bold;">大学外语B（..</p>
+				</td>
+		    
+				<td>
+					
+					<p title="课程学分：5&lt;br&gt;&lt;/p&gt;课程属性：必修&lt;br/&gt;课程名称：高等数学A（一）&lt;br/&gt;上课时间：第10周 星期三 [03-04]节&lt;br/&gt;上课地点：F-105" style="text-align: left;font-size: 12px;font-weight: bold;">高等数学A（..</p>
+				</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+		</tr>
+	  
+		<tr>
+		    <td>第五六节
+					<br>(05,06小节)
+					
+			</td>
+		    
+				<td>
+					
+					<p title="课程学分：3&lt;br&gt;&lt;/p&gt;课程属性：必修&lt;br/&gt;课程名称：C语言程序设计A&lt;br/&gt;上课时间：第10周 星期一 [05-06]节&lt;br/&gt;上课地点：F-207" style="text-align: left;font-size: 12px;font-weight: bold;">C语言程序设..</p>
+				</td>
+		    
+				<td>
+					
+					<p title="课程学分：1&lt;br&gt;&lt;/p&gt;课程属性：必修&lt;br/&gt;课程名称：学科专业导论&lt;br/&gt;上课时间：第10周 星期二 [05-06]节&lt;br/&gt;上课地点：B-204" style="text-align: left;font-size: 12px;font-weight: bold;">学科专业导论..</p>
+				</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+				<td>
+					
+					<p title="课程学分：2&lt;br&gt;&lt;/p&gt;课程属性：必修&lt;br/&gt;课程名称：大学外语B（一）&lt;br/&gt;上课时间：第10周 星期四 [05-06]节&lt;br/&gt;上课地点：C-101" style="text-align: left;font-size: 12px;font-weight: bold;">大学外语B（..</p>
+				</td>
+		    
+				<td>
+					
+					<p title="undefined" style="text-align: left;font-size: 12px;font-weight: bold;">大学体育（一..</p>
+				</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+		</tr>
+	  
+		<tr>
+		    <td>第七八节
+					<br>(07,08小节)
+					
+			</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+		</tr>
+	  
+		<tr>
+		    <td>第九十节
+					<br>(09,10小节)
+					
+			</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+		</tr>
+	  
+		<tr>
+		    <td>第十一十二节
+					<br>(11,12小节)
+					
+			</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+				<td>
+					
+					
+				</td>
+		    
+		</tr>
+	  
+	  
+	  <tr>
+		  <td>
+			  备注:
+		  </td>
+		  <td colspan="7">
+			  <font color="red"> <strong>请注意：教学楼F、G座3、4节课的上课时间为10:15——11:50，望周知。</strong></font>
+
+		  </td>
+	  </tr>
+	  
+
+	</tbody>
+</table>
+</form>
+
+
+<iframe name="hideFrame" id="hideFrame" style="display:none" src="./saved_resource(1).html"></iframe>
+<style>
+#tooltip{position:absolute;z-index:9999;display:none;padding:4px 8px;border:1px solid rgba(255,255,255,0.25);border-radius:3px;background-color:#333333;filter:alpha(Opacity=80); opacity: 0.8;color:#fff;text-align:left;font-size:16px;}
+#tooltip:before{position:absolute;top:-6px;left:15px;width:0;height:0;border:6px dashed #333333;border-top:0;color:#fff;content:' ';line-height:0;border-bottom-style:solid;border-left-color:transparent;border-right-color:transparent;}
+</style>
+<script type="text/javascript">
+
+
+$("#li_showWeek").html("<span class=\"main_text main_color\">第10周</span>/20周");
+
+
+
+$(function(){
+	    var x=-15;//title显示层x轴偏移量
+	    var y=30;//title显示层y轴偏移量
+	    $("p").mouseover(function(e){//
+	    	// 对所有td元素增加鼠标移入移出事件 //edit by wangwei 2018.10.31 此处修改为对所有P标签增加移入移出事件
+	      this.myTitle=this.title;
+	      this.title="";
+	      if(this.myTitle != ""){
+		      var tooltip="<div id='tooltip'>"+this.myTitle+"</div>"; //创建DIV元素
+		      $("body").append(tooltip); //追加到文档中
+		      $("#tooltip").css({"top": (e.pageY+y) + "px","left": (e.pageX+x) + "px"}).show();     //设置X Y坐标， 并且显示
+	      }   
+	    }).mouseout(function(){
+	      this.title=this.myTitle;
+	      $("#tooltip").remove(); //移除
+	    }).mousemove(function(e){
+	        $("#tooltip").css({"top": (e.pageY+y) + "px","left": (e.pageX+x) + "px"});
+	    })
+})
+
+	function checkInfo(jx0408id,kssj,jssj){
+		var shareUrl ="";
+
+			var isyx = false;
+			var  urlinfo = "/jsxsd/kbxx/isYxMeetingV2?jx0408id="+jx0408id+"&kssj="+kssj+"&jssj="+jssj;
+				$.ajax({
+					type : "GET",
+					async:false,
+					url : urlinfo,
+					dataType: "json",
+					success:function(text) {
+						if(text!=null&&text!=""){
+							shareUrl = text;
+							isyx = true;
+						}else{
+							isyx = false;
+
+						}
+					},
+					error:function() {
+						isyx = false;
+					}
+				});
+				if(!isyx){
+					alert("课堂连接已失效！");
+					parent.window.location.reload();
+					return false;
+				}else{
+					window.open(shareUrl);
+				}
+
+	}
+    function createMeeting(jx0408id,kcjc,kssj,jssj,rs){
+	//判断有无连排课堂，有的话需要修改传入的开始结束时间
+
+        document.Form1.target="hideFrame";
+        window.Form1.action="/jsxsd/kbxx/creatMeetingV2?jx0408id="+jx0408id+"&kcjc="+kcjc+"&kssj="+kssj+"&jssj="+jssj+"&rs="+rs;
+        window.Form1.submit();
+    }
+
+</script></div>
+						<script type="text/javascript">
+							var sjms = document.getElementById("sjms");
+							var sjmsValue = "";
+							if(sjms){
+								sjmsValue = sjms.value;
+							}							
+							//TD:67812 缴费课表控制
+							var isjfkz = '0';
+							if(isjfkz=="1"){
+								$("#kbLoading").load("/jsxsd/view/xssf/xsjf_message.jsp", {rq: "2026-10-28"});
+							}else{								
+								$("#kbLoading").load("/jsxsd/framework/main_index_loadkb.jsp", {rq: "2026-10-28",sjmsValue:sjmsValue});
+							}						
+						</script>
+					</div>
+				</div>
+			</div>
+		</div>
+		</div>
+		<div class="middlewapleftdown">
+			<div class="middlewapmyexam l">
+
+				
+
+					<div class="noticetitle b" style="height: 10%;">
+						在线问答
+					</div>
+					<div class="examlist" style="height: 40%;">
+						<ul class="list-group list_tz" style="margin-bottom:0;">
+							  
+						</ul>
+					</div>
+					<div class="noticetitle b" style="height: 10%;">
+						学业信息
+					</div>
+					
+						<div class="examlist" id="ul_xyxxggList" style="height: 40%;">
+
+
+
+
+
+
+<ul class="list-group list_tz" style="margin-bottom:0;">
+	
+	  
+	
+		<li class="list-group-item " style="border: 0px;" title="毕业审查结果已出">
+			<ul>
+				<li class="no_padding col-sm-9" style="width: 70%;padding: 0;">
+					<div class="no_padding " style="width: 100%;float: left;">
+						<a href="javascript:void(0);" onclick="gotoXyxxgg2('260402303')" title="执行计划内未及格、未修读、修读中课程">
+							执行计划内未及格、未修读、修读中课程
+						</a>
+					</div>
+				</li>
+			</ul>
+		</li>
+	
+</ul>
+
+<script type="text/javascript">
+//置顶功能开始
+
+function tzMouseout(ind){
+	$("#fbsj"+ind).show();
+	$("#img"+ind).hide();
+}
+function tzMouseover(ind){
+	$("#fbsj"+ind).hide();
+	$("#img"+ind).show();
+}
+function zdOper(obj,ggid){
+	var parentsLi = $(obj).parent().parent().parent();//获得最顶层li控件
+	var next = parentsLi.prev();//获得li的上一个兄弟节点
+	
+	while(next.prev().html() != undefined){
+		next = next.prev();//获得li的上一个兄弟节点
+	}
+	next.fadeOut("slow",function(){//交换位置
+		$(this).before(parentsLi);
+		}).fadeIn();
+	dwrMonitor.gglyZd(ggid);//更新置顶字段	
+}
+//置顶功能结束
+</script></div>
+					
+				
+			</div>
+			<div class="middlewapmynotice">
+				<div class="noticetitle b" style="height: 10%;">
+					通知
+				</div>
+				<div class="noticelist" id="ul_tzggList">
+
+
+
+
+
+
+<ul class="list-group list_tz" style="margin-bottom:0;">
+	<br>
+	  
+		<li class="list-group-item " style="border: 0px;" title="沈阳工业大学考试、考场相关规定">
+			<ul>
+				<li class="no_padding col-sm-9" style="width: 70%;padding: 0;">
+					<div class="no_padding " style="width: 100%;float: left;">
+						<a href="javascript:void(0);" onclick="gotoTzgg('47AF0CD3784E49D48DE6AA7F551DFA88')" title="沈阳工业大学考试、考场相关规定">
+							
+								[已读]											
+							
+							
+							
+								<img width="23" height="13" src="./new.png">
+							
+							沈阳工业大学考试、考场相关规定
+						</a>
+					</div>
+				</li>
+				<li class="no_padding col-sm-3" style="width: 30%;padding: 0;" onmouseout="tzMouseout(0)" onmouseover="tzMouseover(0)">
+					<span id="fbsj0" style="cursor: pointer; text-align: right; float: right;">
+				 		2020/01/02 17:05
+					</span>
+					<span id="img0" style="cursor: pointer; text-align: right; float: right; display: none;" onclick="zdOper(this,'47AF0CD3784E49D48DE6AA7F551DFA88')">
+					<img width="15" height="15" src="./zd.png">
+					置顶 	
+					</span>
+				</li>
+			</ul>
+		</li>
+	  
+</ul>
+
+<script type="text/javascript">
+//置顶功能开始
+
+function tzMouseout(ind){
+	$("#fbsj"+ind).show();
+	$("#img"+ind).hide();
+}
+function tzMouseover(ind){
+	$("#fbsj"+ind).hide();
+	$("#img"+ind).show();
+}
+function zdOper(obj,ggid){
+	var parentsLi = $(obj).parent().parent().parent();//获得最顶层li控件
+	var next = parentsLi.prev();//获得li的上一个兄弟节点
+	
+	while(next.prev().html() != undefined){
+		next = next.prev();//获得li的上一个兄弟节点
+	}
+	next.fadeOut("slow",function(){//交换位置
+		$(this).before(parentsLi);
+		}).fadeIn();
+	dwrMonitor.gglyZd(ggid);//更新置顶字段	
+}
+//置顶功能结束
+</script></div>
+			</div>
+		</div>
+	</div>
+	<div class="middlewaprightpart r">
+		<div class="middlewaprightup" style="height: 52%;">
+			<div class="noticetitle b">
+				常用操作
+			</div>
+			<div class="usuafunmenu">
+				<div class="panel-body">
+					<div class="cy_icon">
+						
+							<div class="grid" onclick="kjcdShow('NEW_XSD_PYGL','NEW_XSD_PYGL_WDKB','NEW_XSD_PYGL_WDKB_XQLLKB','/xskb/xskb_list.do','学期理论课表')">
+								<div class="grid__icon">
+									<img src="./tb12.png">
+								</div>
+								<p class="grid__label" style="margin-top: 10px;" title="">
+									学期理论课表
+								</p>
+							</div>
+					   
+							<div class="grid" onclick="kjcdShow('NEW_XSD_XJCJ','NEW_XSD_XJCJ_WDCJ','NEW_XSD_XJCJ_WDCJ_KCCJCX','/kscj/cjcx_frm','课程成绩查询')">
+								<div class="grid__icon">
+									<img src="./tb11.png">
+								</div>
+								<p class="grid__label" style="margin-top: 10px;" title="">
+									课程成绩查询
+								</p>
+							</div>
+					   
+							<div class="grid" onclick="kjcdShow('NEW_XSD_PYGL','NEW_XSD_PYGL_XKGL','NEW_XSD_PYGL_XKGL_NXSXKZX','/xsxk/xklc_list','学生选课中心')">
+								<div class="grid__icon">
+									<img src="./tb9.png">
+								</div>
+								<p class="grid__label" style="margin-top: 10px;" title="">
+									学生选课中心
+								</p>
+							</div>
+					   
+							<div class="grid" onclick="kjcdShow('NEW_XSD_KSBM','NEW_XSD_KSBM_WDKS','NEW_XSD_KSBM_WDKS_KSAPCX','/xsks/xsksap_query','考试安排查询')">
+								<div class="grid__icon">
+									<img src="./tb12.png">
+								</div>
+								<p class="grid__label" style="margin-top: 10px;">
+									考试安排查询
+								</p>
+							</div>
+					   
+							<div class="grid" onclick="kjcdShow('NEW_XSD_JXPJ','NEW_XSD_JXPJ_JXPJ','NEW_XSD_JXPJ_JXPJ_XSPJ','/xspj/xspj_find.do','学生评价')">
+								<div class="grid__icon">
+									<img src="./tb11.png">
+								</div>
+								<p class="grid__label" style="margin-top: 10px;">
+									学生评价
+								</p>
+							</div>
+					   
+							<div class="grid" onclick="kjcdShow('NEW_XSD_KSBM','NEW_XSD_KSBM_WDSQ','NEW_XSD_KSBM_WDSQ_HKSQ','/kscj/hksq_query','缓考申请')">
+								<div class="grid__icon">
+									<img src="./tb14.png">
+								</div>
+								<p class="grid__label" style="margin-top: 10px;">
+									缓考申请
+								</p>
+							</div>
+					   
+							<div class="grid" onclick="kjcdShow('NEW_XSD_PYGL','NEW_XSD_PYGL_JCGL','NEW_XSD_PYGL_NJCGL_XSJCQR','/nxsjc/jccx','学生教材确认')">
+								<div class="grid__icon">
+									<img src="./tb10.png">
+								</div>
+								<p class="grid__label" style="margin-top: 10px;" title="">
+									学生教材确认
+								</p>
+							</div>
+					   
+							<div class="grid" onclick="kjcdShow('NEW_XSD_PYGL','NEW_XSD_PYGL_PYFA','NEW_XSD_PYGL_PYFAMX','/pyfa/topyfamx','培养方案明细')">
+								<div class="grid__icon">
+									<img src="./tb11.png">
+								</div>
+								<p class="grid__label" style="margin-top: 10px;">
+									培养方案明细
+								</p>
+							</div>
+					   
+					</div>
+					
+				</div>
+			</div>
+		</div>
+		<div class="middlewaprightdown" style="height: 47.2%;">
+			<div class="noticetitle b" style="height: 10%;">
+				学期进度安排
+			</div>
+			<div class="noticelist">
+				<ul class="cbp_tmtimeline">
+					
+						<li>
+							
+							
+								<div class="cbp_tmicon cbp_tmicon-phone">一月</div>
+							
+							<div class="cbp_tmlabel">
+					            <h6></h6>
+					        </div>
+						</li>
+					
+						<li>
+							
+								<div class="cbp_tmicon cbp_tmicon-phone" style="background-color:#1C84C6; ">十二月</div>
+							
+							
+							<div class="cbp_tmlabel">
+					            <h6></h6>
+					        </div>
+						</li>
+					
+						<li>
+							
+							
+								<div class="cbp_tmicon cbp_tmicon-phone">十一月</div>
+							
+							<div class="cbp_tmlabel">
+					            <h6></h6>
+					        </div>
+						</li>
+					
+						<li>
+							
+								<div class="cbp_tmicon cbp_tmicon-phone" style="background-color:#1C84C6; ">十月</div>
+							
+							
+							<div class="cbp_tmlabel">
+					            <h6></h6>
+					        </div>
+						</li>
+					
+						<li>
+							
+							
+								<div class="cbp_tmicon cbp_tmicon-phone">九月</div>
+							
+							<div class="cbp_tmlabel">
+					            <h6></h6>
+					        </div>
+						</li>
+					
+						<li>
+							
+								<div class="cbp_tmicon cbp_tmicon-phone" style="background-color:#1C84C6; ">八月</div>
+							
+							
+							<div class="cbp_tmlabel">
+					            <h6></h6>
+					        </div>
+						</li>
+					
+				</ul>
+			</div>
+		</div>
+	</div>
+</div>
+	<!-- 侧边条 -->
+	
+	
+<script type="text/javascript" src="./jquery.messager.js.下载" language="javascript"></script>
+<script type="text/javascript">
+function loadingTzgg() {
+	$("#ul_tzggList").load("/jsxsd/framework/main_index_loadtzgg.jsp");
+}
+function loadingXyxxgg() {
+	$("#ul_xyxxggList").load("/jsxsd/framework/main_index_loadxyxxgg.jsp");
+}
+$(function(){
+	loadingTzgg();
+	loadingXyxxgg();
+
+	if(false){
+		gotoXyxxgg2('')
+	}
+});
+
+var msg = "";
+function selectWdatePicker() {
+	var sjms = document.getElementById("sjms");
+	var sjmsValue = "";
+	if(sjms){
+		sjmsValue = sjms.value;
+	}
+	WdatePicker({
+		el:$dp.$("rq"),
+		isShowClear:false,
+		readOnly:true,
+		onpicking: function(dq){
+			$("#kbLoading").html("疯狂加载中...");
+			if(isjfkz=="1"){
+				$("#kbLoading").load("/jsxsd/view/xssf/xsjf_message.jsp", {rq: "2026-10-28"});
+			}else{
+				$("#kbLoading").load("/jsxsd/framework/main_index_loadkb.jsp", {rq: dq.cal.getNewDateStr()});			}
+		}
+	});
+}
+
+function kjcdShow(yjcode, ejcode, sjcode, url, name){
+	parent.showMenuErji(parent.$(".cy_icon > li[data-code='"+yjcode+"']").get(0));
+	parent.$(".sidebar-menu > li[data-code='"+ejcode+"']").addClass("active");
+	parent.$(".sidebar-menu > li[data-code='"+ejcode+"']").find(".treeview-menu").show();
+	parent.$(".sidebar-menu > li[data-code='"+ejcode+"']").find(".treeview-menu > li[data-sjcode='"+sjcode+"']").addClass("active");
+	parent.$(".tabs li.tabs-selected").find(".tabs-title").text(name);
+	parent.$("#Frame"+(parent.frameIndex-1)).attr("src", "/jsxsd"+url);
+}
+
+</script>
+<script language="javascript">
+function gotoZxwd(oaid) {
+	top.artDialog({
+		id: oaid,
+		title: "在线问答",
+		fixed: true,
+		url: "/jsxsd/zxwd/zxwd_show?openType=art&oaid="+oaid,
+		lock: true,
+		width: $(window).width() - 200,
+		height: $(window).height() - 100
+	});
+}
+
+var old_td = "";
+function gotoTzgg(ggid) {
+	top.artDialog({
+		id: ggid,
+		title: "通知公告",
+		fixed: true,
+		url: "/jsxsd/framework/main_index_tzgg.jsp?id="+ggid,
+		lock: true,
+		width: $(window).width() - 200,
+		height: $(window).height() - 300
+	}, null, null, function(){
+		loadingTzgg();
+	});
+}
+
+function gotoXyxxgg(ggid) {
+	top.artDialog({
+		id: ggid,
+		title: "学业信息",
+		fixed: true,
+		url: "/jsxsd/framework/main_index_xyxxgg.jsp?id="+ggid,
+		lock: true,
+		width: $(window).width() - 200,
+		height: $(window).height() - 300
+	}, null, null, function(){
+		loadingXyxxgg();
+	});
+}
+
+function gotoXyxxgg2(ggid) {
+	top.artDialog({
+		id: ggid,
+		title: "修读信息",
+		fixed: true,
+		url: "/jsxsd/framework/main_index_xyxxgg2.jsp?id="+ggid,
+		lock: true,
+		width: $(window).width() - 200,
+		height: $(window).height() - 100
+	}, null, null, function(){
+		loadingXyxxgg();
+	});
+}
+
+function showDetails(td_id,jx0408id){
+	var oldtd = document.getElementById(old_td);
+	if(oldtd!=null){
+		oldtd.className="";
+	}
+	old_td = td_id;
+	var td = document.getElementById(td_id);
+	td.className = "act";
+	
+	$.ajax({
+		type: "GET",
+		 async:true,
+		url: "/jsxsd/portal/queryDetails.do",
+		data: {id:jx0408id,sjjc:td_id,zc:'10'},
+		dataType: "json",
+		success:function(data){
+			var json = data.dataList[0];
+			var kcmc = json.kcmc;
+			if(kcmc.length>15){
+				kcmc = kcmc.substr(0, 13)+"......";
+			}
+			document.getElementById("kcmc").innerText = kcmc;
+			document.getElementById("xf").innerText = json.xf;
+			document.getElementById("skjs").innerText = json.skjs;
+			document.getElementById("skjs").innerText = "老师："+(json.skjs==null?"":json.skjs);
+			document.getElementById("jsmc").innerText = "教室："+json.jsmc;
+			document.getElementById("kkzc").innerText = "周次："+json.kkzc;
+			document.getElementById("bz").innerText = "备注："+(json.bz==null?"":json.bz);
+			document.getElementById("kcjd").innerText = data.jctxt;
+			document.getElementById("kcjdt").style.width = data.bl + "%";
+		}
+	});
+}
+
+//置顶功能开始
+
+function tzMouseout(ind){
+	$("#fbsj"+ind).show();
+	$("#img"+ind).hide();
+}
+function tzMouseover(ind){
+	$("#fbsj"+ind).hide();
+	$("#img"+ind).show();
+}
+function zdOper(obj,ggid){
+	var parentsLi = $(obj).parent().parent().parent();//获得最顶层li控件
+	var next = parentsLi.prev();//获得li的上一个兄弟节点
+	
+	while(next.prev().html() != undefined){
+		next = next.prev();//获得li的上一个兄弟节点
+	}
+	next.fadeOut("slow",function(){//交换位置
+		$(this).before(parentsLi);
+		}).fadeIn();
+	dwrMonitor.gglyZd(ggid);//更新置顶字段	
+}
+//置顶功能结束
+
+//是否通过快速链接进入 1为是
+var jumpFlag = "";
+if("1" == jumpFlag){
+	kjcdShow("", "", "" , "" ,"" );
+}
+function selectWdatePicker2() {
+	var sjms = document.getElementById("sjms");
+	var sjmsValue = "";
+	if(sjms){
+		sjmsValue = sjms.value;
+	}
+	var rq = document.getElementById("rq").value;
+	$("#kbLoading").html("疯狂加载中...");
+	$("#kbLoading").load("/jsxsd/framework/main_index_loadkb.jsp", {rq: rq,sjmsValue:sjmsValue});
+}
+
+function xgmm(){
+	document.getElementById("PassDiv").style.display="none";
+	kjcdShow("NEW_XSD_WDZM","NEW_XSD_WDZM_GRXX","NEW_XSD_WDZM_GRXX_XGMM","/grsz/grsz_xgmm","修改密码");
+}
+function qxDiv(){
+	document.getElementById("PassDiv").style.display="none";
+}
+
+$(function(){
+	var iLeft = parseInt((window.screen.width-450)/2);
+	var iTop = parseInt((window.screen.height-140-200)/2);
+	document.getElementById("PassDiv").style.right = iLeft+"px";
+	document.getElementById("PassDiv").style.top = iTop+"px";
+});
+
+function bz(){
+	document.getElementById("PassDiv").style.display="none";
+	var userid ='58BCD806A64859DEE063A164590AF4BC' ;
+	var url="/jsxsd/grsz/upuser";
+	$.ajax( {
+		url:url,
+		type:'post',
+		cache:false,
+		dataType:'text',
+		data:{"userid":userid},
+		success:function() {
+			window.close();
+		},
+		error:function() {
+			window.close();
+		}
+	});
+}
+</script>
+</body></html>

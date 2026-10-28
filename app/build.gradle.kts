@@ -10,18 +10,19 @@ plugins {
 
 android {
     namespace = "com.wakeup"
-    // 36 是 Google 公开 SDK 仓库当前可获取的最高平台；
-    // android-37 仍属 preview 频道，CI 上无法通过 sdkmanager 安装
-    compileSdk = 36
+    // 37 是当前公开 SDK 仓库里的稳定平台（36 之后改成 minor 版本线：37.0 / 37.1 / 37.2）。
+    // CI 的 sdkmanager 安装 platforms;android-37.0，与本地一致。
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.wakeup"
         // 23 = Android 6.0：Compose 1.11（animation-core）要求的最低值就是 23，
         // 再往下系统组件就不支持了。java.time 靠 core library desugaring 下放，见 compileOptions
         minSdk = 23
-        targetSdk = 36
-        versionCode = 9
-        versionName = "1.0.8"
+        targetSdk = 37
+        // 版本号单点定义在 gradle/libs.versions.toml（CI 会校验 tag 与它一致）
+        versionCode = libs.versions.appVersionCode.get().toInt()
+        versionName = libs.versions.appVersionName.get()
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

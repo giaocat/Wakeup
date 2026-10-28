@@ -1,0 +1,64 @@
+name: Bug 报告
+description: 课表显示、同步、表盘/信息块、大屏或折叠屏出问题时
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请先确认：**不要在描述或截图里贴真实的课表 token**（链接末尾那串数字请打码）。
+        课表数据来自学校教务系统，本项目不收集任何用户数据。
+  - type: input
+    id: version
+    attributes:
+      label: 版本
+      description: 设置页底部或 GitHub Release 里显示的版本号（如 1.0.8），手表端请注明「手表」
+      placeholder: "1.0.8 / 手表端 1.0.8"
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: 出问题的地方
+      options:
+        - 手机端 · 课表页
+        - 手机端 · 今日页
+        - 手机端 · 设置/同步
+        - 手机端 · 大屏 / 折叠屏排版
+        - 手表端 · 应用本体
+        - 手表端 · 表盘复杂功能（表盘小组件）
+        - 手表端 · 信息块（Tile）
+        - 手表端 · 手机同步
+        - 其它
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: 设备与系统
+      description: 手机型号 / Android 版本；手表型号 / Wear OS 版本
+      placeholder: "Pixel 8, Android 15；Galaxy Watch6, Wear OS 5"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 打开课表页
+        2. 翻到第 9 周
+        3. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望结果 / 实际结果
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 截图或日志（可选）
+      description: 截图请把 token、姓名等打码
+    validations:
+      required: false

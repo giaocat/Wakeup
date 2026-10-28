@@ -14,13 +14,11 @@ import androidx.wear.watchface.complications.datasource.ComplicationDataSourceUp
 import androidx.wear.watchface.complications.datasource.ComplicationRequest
 import androidx.wear.watchface.complications.datasource.SuspendingComplicationDataSourceService
 import com.wakeup.appContainer
-import com.wakeup.domain.Term
-import com.wakeup.domain.nextOccurrence
+import com.wakeup.domain.NextClassPresentation
+import com.wakeup.domain.NextClassPresenter
 import com.wakeup.wear.MainActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.time.LocalDateTime
-import java.time.LocalTime
 
 /**
  * 表盘复杂功能（Complication）：在系统表盘上显示**下一节课**。
@@ -42,6 +40,23 @@ import java.time.LocalTime
  * 分不清"没课"和"坏了"，对用户来说是很差的体验。
  */
 class NextClassComplicationService : SuspendingComplicationDataSourceService() {
+
+    /**
+     * 把 `:core` 的统一呈现结果映射成表盘这一层需要的内容。
+     *
+     * 只做字段挑选，不再拼文案：`shortText` / `title` / `longText` / `description`
+     * 都已经在 [NextClassPresenter] 里按"有课 / 无课 / 未同步"三种情况算好了。
+     */
+    private fun NextClassPresentation.toContent(): NextClassContent = when {
+        !hasTimetable -> NextClassContent.NO_TIMETABLE
+        !hasClass -> NextClassContent.NO_CLASS
+        else -> NextClassContent(
+            shortText = shortText,
+            title = title,
+            longText = longText,
+            description = description,
+        )
+    }
 
     /**
      * 表盘来要数据。
@@ -70,44 +85,15 @@ class NextClassComplicationService : SuspendingComplicationDataSourceService() {
     /**
      * 读本地缓存拼出要显示的内容。
      *
+     * 文案全部来自 `:core` 的 [NextClassPresenter] —— 和手机今日页、Smartspacer、信息块
+     * 用的是同一份实现，四处不会出现"桌面 10:15、表盘 10:20"这种矛盾。
+     *
      * 任何异常（缓存损坏、解析失败）都退化成"未同步"：表盘数据源里抛异常，
      * 系统会直接显示"无数据"，用户没有任何办法自救。
      */
     private fun loadContent(): NextClassContent = runCatching {
         val timetable = appContainer.timetableRepository.timetableForDisplay()
-            ?: return@runCatching NextClassContent.NO_TIMETABLE
-        // 与手机端一致：统一按学校时区解释"现在"，避免手表时区不同导致"今天"算错
-        val now = LocalDateTime.now(Term.TERM_ZONE)
-        val occurrence = timetable.nextOccurrence(now) ?: return@runCatching NextClassContent.NO_CLASS
-
-        val today = now.toLocalDate()
-        val dayLabel = occurrence.dayLabel(today)
-        val clock = formatClock(occurrence.start)
-        // 教室可能为空（`locationOrUnknown` 会补"无教室"，但表盘上宁可不显示）
-        val room = occurrence.course.location.trim()
-
-        NextClassContent(
-            shortText = "$clock ${shortCourseName(occurrence.name)}",
-            title = dayLabel,
-            longText = if (room.isEmpty()) {
-                "$clock ${occurrence.name}"
-            } else {
-                "$clock ${occurrence.name} · $room"
-            },
-            description = buildString {
-                append(dayLabel)
-                append(" 第")
-                append(occurrence.periodLabel)
-                append("节 ")
-                append(clock)
-                append(' ')
-                append(occurrence.name)
-                if (room.isNotEmpty()) {
-                    append(' ')
-                    append(room)
-                }
-            },
-        )
+        NextClassPresenter.present(timetable).toContent()
     }.getOrElse { NextClassContent.NO_TIMETABLE }
 
     /** 按类型拼 [ComplicationData]；不支持的返回 null。 */
@@ -181,12 +167,12 @@ private data class NextClassContent(
             description = "近期没有课",
         )
 
-        /** 表盘编辑器里的固定样例，不读任何本地数据。 */
+        /** 表盘编辑器里的固定样例，不读任何本地数据（与 Smartspacer / 信息块同源）。 */
         val PREVIEW = NextClassContent(
-            shortText = "10:15 高数",
-            title = "今天",
-            longText = "10:15 高等数学 · F-105",
-            description = "今天 第3-4节 10:15 高等数学 F-105",
+            shortText = NextClassPresentation.PREVIEW.shortText,
+            title = NextClassPresentation.PREVIEW.title,
+            longText = NextClassPresentation.PREVIEW.longText,
+            description = NextClassPresentation.PREVIEW.description,
         )
     }
 }
@@ -212,19 +198,3 @@ object ComplicationRefresher {
         }
     }
 }
-
-/** `10:15`。 */
-private fun formatClock(time: LocalTime): String = "%02d:%02d".format(time.hour, time.minute)
-
-/**
- * 短文本只放得下十来个字，课程名太长就截断。
- *
- * `高等数学`（4 字）原样保留，`机器学习与模式识别` 这类长名字取前 6 字 + `…`，
- * 保证「时间 + 课程名」整体不超过约 12 个字符。
- */
-private fun shortCourseName(name: String, maxLength: Int = SHORT_NAME_MAX_LENGTH): String {
-    val compact = name.trim()
-    return if (compact.length <= maxLength) compact else compact.take(maxLength) + "…"
-}
-
-private const val SHORT_NAME_MAX_LENGTH: Int = 6

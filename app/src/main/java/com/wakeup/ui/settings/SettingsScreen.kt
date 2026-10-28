@@ -20,11 +20,15 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.CloudSync
+import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.School
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.AlertDialog
@@ -57,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import com.wakeup.BuildConfig
 import com.wakeup.data.remote.WakeupApiFactory
 import com.wakeup.data.repository.ThemeMode
+import com.wakeup.data.repository.TimetableSourceKind
 import com.wakeup.data.repository.UserSettings
 import com.wakeup.ui.ScheduleUiState
 import com.wakeup.ui.adaptive.AdaptiveWindowInfo
@@ -86,6 +91,10 @@ fun SettingsScreen(
     cacheSizeBytes: Long,
     onTimetableUrlChange: (String) -> Unit,
     onBaseUrlChange: (String) -> Unit,
+    onSourceKindChange: (TimetableSourceKind) -> Unit,
+    onZfLogin: () -> Unit,
+    onZfLogout: () -> Unit,
+    onZfTermStartChange: (String) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
     onDynamicColorChange: (Boolean) -> Unit,
     onHideUnscheduledChange: (Boolean) -> Unit,
@@ -102,6 +111,7 @@ fun SettingsScreen(
 ) {
     var editingTimetableUrl by rememberSaveable { mutableStateOf(false) }
     var editingBaseUrl by rememberSaveable { mutableStateOf(false) }
+    var editingZfTermStart by rememberSaveable { mutableStateOf(false) }
     var confirmClearCache by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -131,8 +141,12 @@ fun SettingsScreen(
                 state = state,
                 cacheSizeBytes = cacheSizeBytes,
                 twoColumns = adaptive.isExpandedWidth,
+                onEditZfTermStart = { editingZfTermStart = true },
+                onZfLogin = onZfLogin,
+                onZfLogout = onZfLogout,
                 onEditTimetableUrl = { editingTimetableUrl = true },
                 onEditBaseUrl = { editingBaseUrl = true },
+                onSourceKindChange = onSourceKindChange,
                 onThemeModeChange = onThemeModeChange,
                 onDynamicColorChange = onDynamicColorChange,
                 onHideUnscheduledChange = onHideUnscheduledChange,
@@ -153,11 +167,11 @@ fun SettingsScreen(
 
     if (editingTimetableUrl) {
         TextInputDialog(
-            title = "课表链接",
-            label = "课表链接",
+            title = "课表链接 / token",
+            label = "课表链接或 token",
             initialValue = settings.timetableUrl,
             placeholder = WakeupApiFactory.TIMETABLE_URL_EXAMPLE,
-            supportingText = "粘贴教务系统里的完整课表链接；也可以只填 token（如 100000）。",
+            supportingText = "粘贴课表分享链接；也可以只填 token（如 100000）。",
             confirmText = "保存并同步",
             onDismiss = { editingTimetableUrl = false },
             onConfirm = { value ->
@@ -179,6 +193,22 @@ fun SettingsScreen(
             onConfirm = { value ->
                 editingBaseUrl = false
                 onBaseUrlChange(value)
+            },
+        )
+    }
+
+    if (editingZfTermStart) {
+        TextInputDialog(
+            title = "开学第一周周一",
+            label = "日期（YYYY-MM-DD）",
+            initialValue = settings.zfTermStartDate,
+            placeholder = "2026-08-24",
+            supportingText = "用来把「第几周」换算成真实日期。留空则按课表页面里的「当前周」反推。",
+            confirmText = "保存并同步",
+            onDismiss = { editingZfTermStart = false },
+            onConfirm = { value ->
+                editingZfTermStart = false
+                onZfTermStartChange(value.trim())
             },
         )
     }
@@ -218,8 +248,12 @@ private fun SettingsContent(
     state: ScheduleUiState,
     cacheSizeBytes: Long,
     twoColumns: Boolean,
+    onEditZfTermStart: () -> Unit,
+    onZfLogin: () -> Unit,
+    onZfLogout: () -> Unit,
     onEditTimetableUrl: () -> Unit,
     onEditBaseUrl: () -> Unit,
+    onSourceKindChange: (TimetableSourceKind) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
     onDynamicColorChange: (Boolean) -> Unit,
     onHideUnscheduledChange: (Boolean) -> Unit,
@@ -253,8 +287,12 @@ private fun SettingsContent(
                         SourceSection(
                             settings = settings,
                             state = state,
+                            onEditZfTermStart = onEditZfTermStart,
+                            onZfLogin = onZfLogin,
+                            onZfLogout = onZfLogout,
                             onEditTimetableUrl = onEditTimetableUrl,
                             onEditBaseUrl = onEditBaseUrl,
+                            onSourceKindChange = onSourceKindChange,
                             onRefresh = onRefresh,
                         )
                         CacheSection(
@@ -298,9 +336,13 @@ private fun SettingsContent(
                 SourceSection(
                     settings = settings,
                     state = state,
-                    onEditTimetableUrl = onEditTimetableUrl,
-                    onEditBaseUrl = onEditBaseUrl,
-                    onRefresh = onRefresh,
+                            onEditZfTermStart = onEditZfTermStart,
+                            onZfLogin = onZfLogin,
+                            onZfLogout = onZfLogout,
+                            onEditTimetableUrl = onEditTimetableUrl,
+                            onEditBaseUrl = onEditBaseUrl,
+                            onSourceKindChange = onSourceKindChange,
+                            onRefresh = onRefresh,
                 )
             }
             item(key = "cache") {
@@ -337,62 +379,121 @@ private fun SettingsContent(
     }
 }
 
-/** 「课表来源」分组：链接、服务地址、同步状态。 */
 @Composable
 private fun SourceSection(
     settings: UserSettings,
     state: ScheduleUiState,
     onEditTimetableUrl: () -> Unit,
     onEditBaseUrl: () -> Unit,
+    onEditZfTermStart: () -> Unit,
+    onSourceKindChange: (TimetableSourceKind) -> Unit,
+    onZfLogin: () -> Unit,
+    onZfLogout: () -> Unit,
     onRefresh: () -> Unit,
 ) {
     SettingsSection(title = "课表来源") {
-        ListItem(
-            headlineContent = { Text("课表链接") },
-            supportingContent = {
-                Text(
-                    text = settings.timetableUrl.ifBlank { "未设置，点右侧「修改」填写" },
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            },
-            leadingContent = {
-                Icon(Icons.Outlined.Link, contentDescription = null)
-            },
-            trailingContent = {
-                TextButton(onClick = onEditTimetableUrl) { Text("修改") }
-            },
-        )
-        SettingDivider()
-        ListItem(
-            headlineContent = { Text("服务地址") },
-            supportingContent = {
-                Text(
-                    text = settings.baseUrl,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            },
-            leadingContent = {
-                Icon(Icons.Outlined.Language, contentDescription = null)
-            },
-            trailingContent = {
-                TextButton(onClick = onEditBaseUrl) { Text("修改") }
-            },
-        )
-        SettingDivider()
+        // 两种数据源二选一：教务系统（登录）与分享链接（token）
+        TimetableSourceKind.entries.forEach { kind ->
+            val selected = settings.sourceKind == kind
+            ListItem(
+                modifier = Modifier.selectable(
+                    selected = selected,
+                    onClick = { onSourceKindChange(kind) },
+                    role = Role.RadioButton,
+                ),
+                headlineContent = { Text(kind.displayName) },
+                supportingContent = { Text(kind.description) },
+                leadingContent = {
+                    Icon(
+                        if (kind == TimetableSourceKind.ZF_LOGIN) Icons.Outlined.School else Icons.Outlined.Link,
+                        contentDescription = null,
+                    )
+                },
+                trailingContent = { RadioButton(selected = selected, onClick = null) },
+            )
+            SettingDivider()
+        }
+
+        if (settings.sourceKind == TimetableSourceKind.ZF_LOGIN) {
+            ListItem(
+                headlineContent = { Text("教务系统登录") },
+                supportingContent = {
+                    Text(
+                        if (state.zfLoggedIn) {
+                            "已登录，同步时会带上会话；过期后会提示重新登录。"
+                        } else {
+                            "未登录。登录页需要输入账号并填写验证码（或用扫码登录）。"
+                        },
+                    )
+                },
+                leadingContent = { Icon(Icons.Outlined.AccountCircle, contentDescription = null) },
+                trailingContent = {
+                    if (state.zfLoggedIn) {
+                        TextButton(onClick = onZfLogout) { Text("退出") }
+                    } else {
+                        TextButton(onClick = onZfLogin) { Text("登录") }
+                    }
+                },
+            )
+            SettingDivider()
+            ListItem(
+                headlineContent = { Text("开学第一周周一") },
+                supportingContent = {
+                    Text(
+                        settings.zfTermStartDate.ifBlank {
+                            "未设置：按页面里的「当前周」反推；反推不准时在这里填，如 2026-08-24"
+                        },
+                    )
+                },
+                leadingContent = { Icon(Icons.Outlined.DateRange, contentDescription = null) },
+                trailingContent = {
+                    TextButton(onClick = onEditZfTermStart) { Text("设置") }
+                },
+            )
+            SettingDivider()
+        } else {
+            ListItem(
+                headlineContent = { Text("课表链接 / token") },
+                supportingContent = {
+                    Text(
+                        text = settings.timetableUrl.ifBlank { "未设置，点右侧「修改」填写" },
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+                leadingContent = { Icon(Icons.Outlined.Link, contentDescription = null) },
+                trailingContent = {
+                    TextButton(onClick = onEditTimetableUrl) { Text("修改") }
+                },
+            )
+            SettingDivider()
+            ListItem(
+                headlineContent = { Text("服务地址") },
+                supportingContent = {
+                    Text(
+                        text = settings.baseUrl,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+                leadingContent = { Icon(Icons.Outlined.Language, contentDescription = null) },
+                trailingContent = {
+                    TextButton(onClick = onEditBaseUrl) { Text("修改") }
+                },
+            )
+            SettingDivider()
+        }
+
         ListItem(
             headlineContent = { Text("同步状态") },
             supportingContent = {
                 Text(
-                    text = syncSummary(state),
-                    maxLines = 3,
+                    text = syncSummary(state, settings),
+                    maxLines = 4,
                     overflow = TextOverflow.Ellipsis,
                 )
             },
-            leadingContent = {
-                Icon(Icons.Outlined.CloudSync, contentDescription = null)
-            },
+            leadingContent = { Icon(Icons.Outlined.CloudSync, contentDescription = null) },
             trailingContent = {
                 TextButton(onClick = onRefresh, enabled = !state.isLoading) {
                     Text(if (state.isLoading) "同步中" else "刷新")
@@ -402,7 +503,22 @@ private fun SourceSection(
     }
 }
 
+/** 数据源的展示名。 */
+private val TimetableSourceKind.displayName: String
+    get() = when (this) {
+        TimetableSourceKind.ZF_LOGIN -> "教务系统（jwxt.sut.edu.cn）"
+        TimetableSourceKind.SHARE_LINK -> "分享链接（token）"
+    }
+
+/** 数据源的一句话说明。 */
+private val TimetableSourceKind.description: String
+    get() = when (this) {
+        TimetableSourceKind.ZF_LOGIN -> "登录一次后自动复用会话（验证码需手输）"
+        TimetableSourceKind.SHARE_LINK -> "旧方式：粘贴课表分享链接或 token，无需登录"
+    }
+
 /** 「数据与缓存」分组。 */
+
 @Composable
 private fun CacheSection(
     cacheSizeBytes: Long,
@@ -617,8 +733,18 @@ private fun TextInputDialog(
 }
 
 /** 同步状态摘要：上次同步、账号、学期、课程数量与缓存状态。 */
-private fun syncSummary(state: ScheduleUiState): String = buildString {
-    append("上次同步：${TimeUtils.relativeTime(state.lastSyncedAt)}")
+private fun syncSummary(state: ScheduleUiState, settings: UserSettings): String = buildString {
+    // 同步来源：写明这份课表是从哪来的
+    val label = when (settings.sourceKind) {
+        TimetableSourceKind.ZF_LOGIN -> "教务系统"
+        TimetableSourceKind.SHARE_LINK -> "分享链接"
+    }
+    val host = when (settings.sourceKind) {
+        TimetableSourceKind.ZF_LOGIN -> settings.zfBaseUrl
+        TimetableSourceKind.SHARE_LINK -> settings.baseUrl
+    }.trim().removePrefix("https://").removePrefix("http://").trimEnd('/')
+    append("来源：$label（$host）")
+    append("\n上次同步：${TimeUtils.relativeTime(state.lastSyncedAt)}")
     if (state.isFromCache) append(" · 使用本地缓存")
     state.userName?.let { append(" · 账号 $it") }
     state.timetable.term.name.takeIf { it.isNotBlank() }?.let { append(" · 学期 $it") }

@@ -18,7 +18,8 @@ plugins {
 
 android {
     namespace = "com.wakeup.wear"
-    compileSdk = 36
+    // 与 :app 一致：编译/目标都对齐当前稳定平台 37
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.wakeup"
@@ -27,9 +28,10 @@ android {
         // 而表盘小组件是本版本的核心功能，所以取 26（Wear OS 2.0 起）。
         // 实际体验仍以 Wear OS 3（API 30）为准。
         minSdk = 26
-        targetSdk = 36
-        versionCode = 9
-        versionName = "1.0.8"
+        targetSdk = 37
+        // 与手机端共用一处版本定义（gradle/libs.versions.toml）
+        versionCode = libs.versions.appVersionCode.get().toInt()
+        versionName = libs.versions.appVersionName.get()
     }
 
     /** 签名配置与手机端同一套：环境变量优先（CI 用），其次 gradle 属性（本地用）。 */

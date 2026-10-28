@@ -6,16 +6,20 @@ import androidx.lifecycle.viewModelScope
 import com.wakeup.AppContainer
 import com.wakeup.data.remote.SyncResult
 import com.wakeup.data.repository.ThemeMode
+import com.wakeup.data.repository.TimetableSourceKind
 import com.wakeup.data.repository.UserSettings
+import com.wakeup.data.session.ZfSession
 import com.wakeup.data.update.UpdateChecker
 import com.wakeup.data.update.UpdateInfo
 import com.wakeup.data.update.UpdateResult
 import kotlinx.coroutines.flow.first
 import com.wakeup.domain.Course
+import com.wakeup.domain.Term
 import com.wakeup.domain.Timetable
 import com.wakeup.domain.TimetableCourse
 import com.wakeup.sync.PhoneTimetableSync
 import com.wakeup.util.TimeUtils
+import java.time.LocalDate
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -24,7 +28,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.time.LocalDate
 
 /** 课表页状态。 */
 data class ScheduleUiState(
@@ -47,6 +50,12 @@ data class ScheduleUiState(
     val hideUnscheduled: Boolean = false,
     /** 数据版本号，数据变化时自增，方便 UI 判断刷新。 */
     val dataRevision: Int = 0,
+    /** 课表来源：新教务系统（登录）还是旧分享链接。 */
+    val sourceKind: TimetableSourceKind = TimetableSourceKind.ZF_LOGIN,
+    /** 需要用户去登录教务系统（会话缺失/过期）；界面据此弹出登录页。 */
+    val needsZfLogin: Boolean = false,
+    /** 当前是否持有教务系统登录会话。 */
+    val zfLoggedIn: Boolean = false,
 ) {
     val isTermActive: Boolean get() = currentWeek != null
 
@@ -115,7 +124,15 @@ class WakeupViewModel(
         // 设置首次到达后：用本地缓存铺数据，然后联网同步。
         viewModelScope.launch {
             settings.collect { latest ->
-                _schedule.update { it.copy(hasSource = latest.hasSource, hideUnscheduled = latest.hideUnscheduled) }
+                _schedule.update {
+                    it.copy(
+                        // 走教务系统登录时不看"token 是否填过"：有会话就能同步
+                        hasSource = latest.sourceKind == TimetableSourceKind.ZF_LOGIN || latest.hasSource,
+                        hideUnscheduled = latest.hideUnscheduled,
+                        sourceKind = latest.sourceKind,
+                        zfLoggedIn = container.zfSessionStore.loadNow() != null,
+                    )
+                }
                 if (!started) {
                     started = true
                     restoreFromCache(latest.timetableUrl)
@@ -179,9 +196,19 @@ class WakeupViewModel(
     /** 拉取最新课表。 */
     fun sync() {
         if (_schedule.value.isLoading) return
+        val current = settings.value
+        // 新教务系统要带登录会话，走另一条链路（缺会话时弹登录页而不是报"网络错误"）
+        if (current.sourceKind == TimetableSourceKind.ZF_LOGIN) {
+            syncZf(current)
+        } else {
+            syncShareLink(current)
+        }
+    }
+
+    /** 旧分享链接（token）的同步；旧接口恢复后仍然可用。 */
+    private fun syncShareLink(current: UserSettings) {
         _schedule.update { it.copy(isLoading = true, errorMessage = null) }
         viewModelScope.launch {
-            val current = settings.value
             if (!current.hasSource) {
                 _schedule.update {
                     it.copy(
@@ -198,38 +225,163 @@ class WakeupViewModel(
                 source = current.timetableUrl,
                 baseUrl = current.baseUrl,
             )
+            applySyncResult(result, hadDataBefore)
+            pushToWatch(result)
+        }
+    }
 
-            _schedule.update { state ->
-                when (result) {
-                    is SyncResult.Success -> {
-                        val timetable = container.timetableRepository.cachedTimetable() ?: state.timetable
-                        val currentWeek = timetable.term.weekOf(TimeUtils.today())
-                        val selected = if (hadDataBefore) state.selectedWeek else (currentWeek ?: 1)
-                        state.copy(
-                            timetable = timetable,
-                            selectedWeek = selected.coerceIn(1, timetable.term.totalWeeks.coerceAtLeast(1)),
-                            currentWeek = currentWeek,
-                            today = TimeUtils.today(),
-                            isLoading = false,
-                            errorMessage = null,
-                            lastSyncedAt = container.timetableRepository.lastSyncedAt,
-                            userName = container.timetableRepository.lastUser,
-                            isFromCache = false,
-                            dataRevision = state.dataRevision + 1,
-                        )
-                    }
-
-                    is SyncResult.Failure -> state.copy(
-                        isLoading = false,
-                        errorMessage = result.message,
-                    )
+    /**
+     * 新教务系统（正方）的同步。
+     *
+     * 会话存在就直接带 Cookie 抓课表页；会话缺失或过期（服务端把我们重定向回登录页）时
+     * 置 `needsZfLogin = true`，由界面弹出 WebView 登录页，用户登录后再继续同步。
+     */
+    private fun syncZf(current: UserSettings) {
+        _schedule.update { it.copy(isLoading = true, errorMessage = null) }
+        viewModelScope.launch {
+            val session = container.zfSessionStore.loadNow()
+            if (session == null || !session.isValid) {
+                android.util.Log.w("WakeupSync", "本地没有教务系统会话，弹出登录页")
+                _schedule.update {
+                    it.copy(isLoading = false, needsZfLogin = true, errorMessage = null, zfLoggedIn = false)
                 }
+                return@launch
             }
 
-            // 同步成功后顺手把手表需要的课表推过去（Wearable Data Layer）。
-            // 没有配对的手表 / 没有 GMS 时会静默失败，绝不影响手机端本身。
-            if (result is SyncResult.Success) {
-                launch { PhoneTimetableSync.push(container.appContext) }
+            val hadDataBefore = _schedule.value.hasData
+            val result = container.timetableRepository.refreshZf(
+                baseUrl = current.zfBaseUrl,
+                path = current.zfTimetablePath,
+                cookie = session.cookie,
+                termStartEpochSeconds = parseTermStart(current.zfTermStartDate),
+            )
+
+            if (result is SyncResult.Failure && result.needsLogin) {
+                // 会话失效：清掉旧会话并请用户重新登录（不清课表缓存，先让旧课表继续可见）
+                android.util.Log.w("WakeupSync", "同步要求重新登录：${result.message}")
+                container.zfSessionStore.clear()
+                _schedule.update {
+                    it.copy(isLoading = false, needsZfLogin = true, zfLoggedIn = false, errorMessage = null)
+                }
+                return@launch
+            }
+
+            applySyncResult(result, hadDataBefore)
+            pushToWatch(result)
+        }
+    }
+
+    /** 把同步结果落到界面状态（两条数据源共用）。 */
+    private fun applySyncResult(result: SyncResult, hadDataBefore: Boolean) {
+        _schedule.update { state ->
+            when (result) {
+                is SyncResult.Success -> {
+                    val timetable = container.timetableRepository.cachedTimetable() ?: state.timetable
+                    val currentWeek = timetable.term.weekOf(TimeUtils.today())
+                    val selected = if (hadDataBefore) state.selectedWeek else (currentWeek ?: 1)
+                    state.copy(
+                        timetable = timetable,
+                        selectedWeek = selected.coerceIn(1, timetable.term.totalWeeks.coerceAtLeast(1)),
+                        currentWeek = currentWeek,
+                        today = TimeUtils.today(),
+                        isLoading = false,
+                        errorMessage = null,
+                        lastSyncedAt = container.timetableRepository.lastSyncedAt,
+                        userName = container.timetableRepository.lastUser,
+                        isFromCache = false,
+                        dataRevision = state.dataRevision + 1,
+                        zfLoggedIn = state.sourceKind == TimetableSourceKind.ZF_LOGIN,
+                    )
+                }
+
+                is SyncResult.Failure -> state.copy(
+                    isLoading = false,
+                    errorMessage = result.message,
+                )
+            }
+        }
+    }
+
+    /** 同步成功后顺手把手表需要的课表推过去；没配对手表时静默失败。 */
+    private fun pushToWatch(result: SyncResult) {
+        if (result is SyncResult.Success) {
+            viewModelScope.launch { PhoneTimetableSync.push(container.appContext) }
+        }
+    }
+
+    /** `2026-08-24` → 当天 00:00（学校时区）的秒级时间戳；没填/写错返回 null。 */
+    private fun parseTermStart(date: String): Long? = runCatching {
+        LocalDate.parse(date.trim()).atStartOfDay(Term.TERM_ZONE).toEpochSecond()
+    }.getOrNull()
+
+    /**
+     * 用户在应用内登录成功后调用（[cookie] 来自 WebView 的 CookieManager）。
+     *
+     * 保存会话后立刻同步一次；失败会按普通错误显示，不会循环弹登录页。
+     */
+    fun onZfLoggedIn(cookie: String) {
+        val trimmed = cookie.trim()
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch {
+            container.zfSessionStore.save(
+                ZfSession(
+                    cookie = trimmed,
+                    savedAt = System.currentTimeMillis(),
+                    baseUrl = settings.value.zfBaseUrl,
+                ),
+            )
+            _schedule.update { it.copy(needsZfLogin = false, zfLoggedIn = true) }
+            sync()
+        }
+    }
+
+    /** 用户关掉登录页（不登录也允许继续看旧缓存）。 */
+    fun dismissZfLogin() {
+        _schedule.update { it.copy(needsZfLogin = false) }
+    }
+
+    /** 手动打开登录页（设置页里点「登录」）。 */
+    fun requestZfLogin() {
+        _schedule.update { it.copy(needsZfLogin = true) }
+    }
+
+    /** 切换课表数据源；切换后清掉旧来源的数据并重新同步。 */
+    fun setSourceKind(kind: TimetableSourceKind) {
+        viewModelScope.launch {
+            if (kind == settings.value.sourceKind) return@launch
+            container.settingsRepository.setSourceKind(kind)
+            _schedule.update {
+                it.copy(
+                    timetable = Timetable.empty(),
+                    isFromCache = false,
+                    lastSyncedAt = 0L,
+                    userName = null,
+                    errorMessage = null,
+                    sourceKind = kind,
+                    dataRevision = it.dataRevision + 1,
+                )
+            }
+            container.timetableRepository.clearCache()
+            sync()
+        }
+    }
+
+    /** 学期第一周周一（`2026-08-24`）；空字符串表示交给页面「当前周」反推。 */
+    fun setZfTermStartDate(date: String) {
+        viewModelScope.launch {
+            container.settingsRepository.setZfTermStartDate(date.trim())
+            sync()
+        }
+    }
+
+
+
+    /** 退出教务系统登录（会话被清，下次同步会要求重新登录）。 */
+    fun logoutZf() {
+        viewModelScope.launch {
+            container.zfSessionStore.clear()
+            _schedule.update {
+                it.copy(zfLoggedIn = false, needsZfLogin = false, errorMessage = null)
             }
         }
     }
