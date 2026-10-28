@@ -29,7 +29,7 @@ kotlinxCoroutines = "1.10.2"
 # 注意：SDK 的 AAR 声明 minSdk 29，而本项目 minSdk 26，
 # 所以 AndroidManifest.xml 里用 tools:overrideLibrary 覆盖（那里有详细说明）。
 # AAR 的 minCompileSdk=1，不限制我们锁定的 compileSdk 36。
-smartspacer = "1.1"
+smartspacer = "1.1.2"
 # Wear OS 版（:wear）用的是 Compose for Wear OS 3。
 # 1.7.x 的 aar-metadata 里 minCompileSdk=37，而我们锁死 compileSdk 36
 # （公开 SDK 仓库没有 android-37），所以停在 1.6.2（minCompileSdk=35）。
