@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>页面不存在 · Wakeup 课表</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#f7fbf8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1513" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2338664f'/%3E%3Crect x='14' y='18' width='36' height='30' rx='6' fill='%23a8f0d1'/%3E%3Cpath d='M14 27h36' stroke='%2338664f' stroke-width='3'/%3E%3Cpath d='M24 14v8M40 14v8' stroke='%23f7fbf8' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --primary: #38664f; --on-primary: #fff;
+    --primary-container: #a8f0d1; --on-primary-container: #002115;
+    --surface: #f7fbf8; --surface-container: #ebf3ee;
+    --on-surface: #171d1a; --on-surface-variant: #414943; --outline-variant: #c1c9c1;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --primary: #8cd5b6; --on-primary: #003824;
+      --primary-container: #21503b; --on-primary-container: #a8f0d1;
+      --surface: #0f1513; --surface-container: #1b211e;
+      --on-surface: #dfe4e0; --on-surface-variant: #c1c9c1; --outline-variant: #414943;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: grid; place-items: center;
+    padding: 24px; background: var(--surface); color: var(--on-surface);
+    font-family: "Roboto", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    font-size: 16px; line-height: 24px;
+  }
+  .card {
+    width: min(100%, 520px); padding: 40px 32px; text-align: center;
+    background: var(--surface-container); border: 1px solid var(--outline-variant);
+    border-radius: 28px;
+  }
+  .code { font-size: 64px; line-height: 72px; font-weight: 700; color: var(--primary); letter-spacing: -.02em; }
+  h1 { font-size: 24px; line-height: 32px; font-weight: 500; margin: 12px 0 8px; }
+  p { margin: 0 0 24px; color: var(--on-surface-variant); font-size: 14px; line-height: 20px; }
+  a.btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    height: 48px; padding: 0 24px; border-radius: 999px;
+    background: var(--primary); color: var(--on-primary);
+    text-decoration: none; font-weight: 500; font-size: 14px;
+  }
+  a.btn:hover { filter: brightness(1.06); }
+  a.plain { display: inline-block; margin-top: 14px; color: var(--primary); font-size: 14px; }
+</style>
+</head>
+<body>
+  <main class="card">
+    <div class="code">404</div>
+    <h1>这个页面不存在</h1>
+    <p>可能是链接写错了，或者页面已经移动。</p>
+    <a class="btn" href="/">回到首页</a>
+    <br>
+    <a class="plain" href="https://github.com/giaocat/Wakeup">在 GitHub 上查看项目</a>
+  </main>
+</body>
+</html>

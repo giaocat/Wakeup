@@ -20,10 +20,14 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.CloudSync
 import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Link
@@ -52,6 +56,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import com.wakeup.data.export.TimetableExportCodec
+import java.time.LocalDate
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -100,6 +107,9 @@ fun SettingsScreen(
     onHideUnscheduledChange: (Boolean) -> Unit,
     onRefresh: () -> Unit,
     onClearCache: () -> Unit,
+    onExportJson: () -> String? = { null },
+    onImportJson: (String) -> Unit = {},
+    onShowMessage: (String) -> Unit = {},
     onOpenRelease: (String) -> Unit,
     onBack: () -> Unit,
     updateChecking: Boolean = false,
@@ -109,6 +119,34 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
     adaptive: AdaptiveWindowInfo = AdaptiveWindowInfo(),
 ) {
+    val context = LocalContext.current
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val json = onExportJson()
+        if (json == null) {
+            onShowMessage("还没有可导出的课表，请先同步一次")
+            return@rememberLauncherForActivityResult
+        }
+        runCatching {
+            context.contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray(Charsets.UTF_8)) }
+        }.onSuccess {
+            onShowMessage("课表已导出")
+        }.onFailure {
+            onShowMessage("导出失败：")
+        }
+    }
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val text = runCatching {
+            context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+        }.getOrNull()
+        if (text.isNullOrBlank()) onShowMessage("读取文件失败，请确认选的是课表导出文件") else onImportJson(text)
+    }
+
     var editingTimetableUrl by rememberSaveable { mutableStateOf(false) }
     var editingBaseUrl by rememberSaveable { mutableStateOf(false) }
     var editingZfTermStart by rememberSaveable { mutableStateOf(false) }
@@ -152,6 +190,8 @@ fun SettingsScreen(
                 onHideUnscheduledChange = onHideUnscheduledChange,
                 onRefresh = onRefresh,
                 onClearCache = { confirmClearCache = true },
+                onExport = { exportLauncher.launch(TimetableExportCodec.defaultFileName(LocalDate.now().toString())) },
+                onImport = { importLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) },
                 updateChecking = updateChecking,
                 updateError = updateError,
                 latestVersion = latestVersion,
@@ -259,6 +299,8 @@ private fun SettingsContent(
     onHideUnscheduledChange: (Boolean) -> Unit,
     onRefresh: () -> Unit,
     onClearCache: () -> Unit,
+    onExport: () -> Unit,
+    onImport: () -> Unit,
     updateChecking: Boolean,
     updateError: String?,
     latestVersion: String?,
@@ -299,6 +341,8 @@ private fun SettingsContent(
                             cacheSizeBytes = cacheSizeBytes,
                             hasData = state.hasData,
                             onClear = onClearCache,
+                            onExport = onExport,
+                            onImport = onImport,
                         )
                     }
                     Column(
@@ -350,6 +394,8 @@ private fun SettingsContent(
                     cacheSizeBytes = cacheSizeBytes,
                     hasData = state.hasData,
                     onClear = onClearCache,
+                    onExport = onExport,
+                    onImport = onImport,
                 )
             }
             item(key = "appearance") {
@@ -524,6 +570,8 @@ private fun CacheSection(
     cacheSizeBytes: Long,
     hasData: Boolean,
     onClear: () -> Unit,
+    onExport: () -> Unit,
+    onImport: () -> Unit,
 ) {
     SettingsSection(title = "数据与缓存") {
         ListItem(
@@ -544,6 +592,24 @@ private fun CacheSection(
                 ) {
                     Text("清空")
                 }
+            },
+        )
+        SettingDivider()
+        ListItem(
+            headlineContent = { Text("导出课表") },
+            supportingContent = { Text("把当前课表保存成 JSON 文件，可用来备份或换机迁移。") },
+            leadingContent = { Icon(Icons.Outlined.FileUpload, contentDescription = null) },
+            trailingContent = {
+                TextButton(onClick = onExport, enabled = hasData) { Text("导出") }
+            },
+        )
+        SettingDivider()
+        ListItem(
+            headlineContent = { Text("导入课表") },
+            supportingContent = { Text("从之前导出的 JSON 文件恢复课表，导入后立即生效。") },
+            leadingContent = { Icon(Icons.Outlined.FileDownload, contentDescription = null) },
+            trailingContent = {
+                TextButton(onClick = onImport) { Text("导入") }
             },
         )
     }

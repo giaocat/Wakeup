@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wakeup 课表 · Material 3 的大学课表 App</title>
+<meta name="description" content="Wakeup 课表：Material 3 Expressive 设计的大学课表，Android 手机 + Wear OS 手表，支持导入导出、大屏与折叠屏。开源免费无广告。">
+<meta name="theme-color" content="#f7fbf8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1513" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Wakeup 课表 · Material 3">
+<meta property="og:description" content="清爽的大学课表：周视图、今日、下一节课，手机 + 手表双端同步。">
+<meta property="og:url" content="https://github.com/giaocat/Wakeup">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2338664f'/%3E%3Crect x='14' y='18' width='36' height='30' rx='6' fill='%23a8f0d1'/%3E%3Cpath d='M14 27h36' stroke='%2338664f' stroke-width='3'/%3E%3Cpath d='M24 14v8M40 14v8' stroke='%23f7fbf8' stroke-width='4' stroke-linecap='round'/%3E%3Cpath d='M23 37l5 5 12-12' stroke='%2338664f' stroke-width='4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+/* =========================================================
+   Material 3 设计令牌：color roles / type scale / shape / motion
+   种子色 teal-green，与 App 的 M3 Expressive 主题一致
+   ========================================================= */
+:root {
+  --md-primary: #38664f;
+  --md-on-primary: #ffffff;
+  --md-primary-container: #a8f0d1;
+  --md-on-primary-container: #002115;
+  --md-secondary: #4c6358;
+  --md-secondary-container: #cfe9da;
+  --md-on-secondary-container: #092016;
+  --md-tertiary: #5b5d7e;
+  --md-tertiary-container: #e1e0ff;
+  --md-on-tertiary-container: #171a35;
+  --md-surface: #f7fbf8;
+  --md-surface-dim: #d8e3dc;
+  --md-surface-container-lowest: #ffffff;
+  --md-surface-container-low: #f1f7f3;
+  --md-surface-container: #ebf3ee;
+  --md-surface-container-high: #e5eee8;
+  --md-surface-container-highest: #dfe9e3;
+  --md-on-surface: #171d1a;
+  --md-on-surface-variant: #414943;
+  --md-outline: #717971;
+  --md-outline-variant: #c1c9c1;
+
+  --md-display-medium: 400 45px/52px system-ui;
+  --md-headline-large: 400 32px/40px system-ui;
+  --md-headline-medium: 400 28px/36px system-ui;
+  --md-headline-small: 400 24px/32px system-ui;
+  --md-title-large: 500 22px/28px system-ui;
+  --md-title-medium: 500 16px/24px system-ui;
+  --md-title-small: 500 14px/20px system-ui;
+  --md-body-large: 400 16px/24px system-ui;
+  --md-body-medium: 400 14px/20px system-ui;
+  --md-body-small: 400 12px/16px system-ui;
+  --md-label-large: 500 14px/20px system-ui;
+  --md-label-medium: 500 12px/16px system-ui;
+  --md-label-small: 500 11px/16px system-ui;
+
+  --md-shape-xs: 4px;
+  --md-shape-sm: 8px;
+  --md-shape-md: 12px;
+  --md-shape-lg: 16px;
+  --md-shape-xl: 28px;
+  --md-shape-full: 999px;
+
+  --md-elevation-1: 0 1px 2px rgba(0, 0, 0, .10), 0 1px 3px 1px rgba(0, 0, 0, .06);
+  --md-elevation-2: 0 1px 2px rgba(0, 0, 0, .10), 0 2px 6px 2px rgba(0, 0, 0, .07);
+  --md-elevation-3: 0 4px 8px 3px rgba(0, 0, 0, .07), 0 1px 3px rgba(0, 0, 0, .12);
+
+  --md-easing-standard: cubic-bezier(.2, 0, 0, 1);
+  --md-easing-emphasized: cubic-bezier(.05, .7, .1, 1);
+  --md-duration-short: 150ms;
+  --md-duration-medium: 250ms;
+  --md-duration-long: 400ms;
+
+  --md-wrap: 1120px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --md-primary: #8cd5b6;
+    --md-on-primary: #003824;
+    --md-primary-container: #21503b;
+    --md-on-primary-container: #a8f0d1;
+    --md-secondary: #b3ccbe;
+    --md-secondary-container: #344c3f;
+    --md-on-secondary-container: #cfe9da;
+    --md-tertiary: #c4c4ea;
+    --md-tertiary-container: #434667;
+    --md-on-tertiary-container: #e1e0ff;
+    --md-surface: #0f1513;
+    --md-surface-dim: #0f1513;
+    --md-surface-container-lowest: #0a0f0d;
+    --md-surface-container-low: #171d1a;
+    --md-surface-container: #1b211e;
+    --md-surface-container-high: #252b28;
+    --md-surface-container-highest: #303633;
+    --md-on-surface: #dfe4e0;
+    --md-on-surface-variant: #c1c9c1;
+    --md-outline: #8b938b;
+    --md-outline-variant: #414943;
+    --md-elevation-1: none;
+    --md-elevation-2: none;
+    --md-elevation-3: none;
+    color-scheme: dark;
+  }
+}
+
+/* ---------- Base ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  * { transition: none !important; animation: none !important; }
+}
+body {
+  margin: 0;
+  overflow-x: hidden;
+  background: var(--md-surface);
+  color: var(--md-on-surface);
+  font: var(--md-body-large);
+  font-family: "Roboto", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, p { margin: 0; }
+a { color: var(--md-primary); text-decoration: none; }
+a:hover { text-decoration: underline; text-underline-offset: 3px; }
+:focus-visible { outline: 3px solid var(--md-primary); outline-offset: 3px; border-radius: var(--md-shape-xs); }
+img, svg { max-width: 100%; }
+.wrap { width: min(100% - 40px, var(--md-wrap)); margin-inline: auto; }
+.skip {
+  position: absolute; left: -9999px; top: 8px; padding: 10px 18px;
+  background: var(--md-primary-container); color: var(--md-on-primary-container);
+  border-radius: var(--md-shape-full); z-index: 99;
+}
+.skip:focus { left: 16px; }
+
+/* ---------- M3 Top app bar ---------- */
+.md-appbar {
+  position: sticky; top: 0; z-index: 40;
+  background: color-mix(in srgb, var(--md-surface) 86%, transparent);
+  backdrop-filter: blur(16px);
+}
+.md-appbar__row { display: flex; align-items: center; gap: 12px; height: 64px; }
+.md-appbar__title { display: inline-flex; align-items: center; gap: 10px; font: var(--md-title-large); color: var(--md-on-surface); }
+.md-appbar__title:hover { text-decoration: none; }
+.md-appbar__logo { width: 32px; height: 32px; border-radius: var(--md-shape-sm); flex: none; }
+.md-appbar__links { display: flex; gap: 4px; margin-left: auto; }
+.md-appbar__links a {
+  display: inline-flex; align-items: center; height: 40px; padding: 0 14px;
+  border-radius: var(--md-shape-full); font: var(--md-label-large); color: var(--md-on-surface-variant);
+  transition: background var(--md-duration-short) var(--md-easing-standard);
+}
+.md-appbar__links a:hover { background: var(--md-surface-container-high); color: var(--md-on-surface); text-decoration: none; }
+
+/* ---------- M3 Buttons ---------- */
+.md-btn {
+  --btn-bg: var(--md-primary); --btn-fg: var(--md-on-primary);
+  position: relative; overflow: hidden;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 48px; padding: 0 24px;
+  border: none; border-radius: var(--md-shape-full);
+  background: var(--btn-bg); color: var(--btn-fg);
+  font: var(--md-label-large); cursor: pointer;
+  transition: box-shadow var(--md-duration-medium) var(--md-easing-standard);
+}
+.md-btn::after {
+  content: ""; position: absolute; inset: 0; background: currentColor; opacity: 0;
+  transition: opacity var(--md-duration-short) var(--md-easing-standard);
+}
+.md-btn:hover::after { opacity: .08; }
+.md-btn:active::after { opacity: .12; }
+.md-btn:hover { box-shadow: var(--md-elevation-1); text-decoration: none; }
+.md-btn--small { height: 40px; padding: 0 18px; font: var(--md-label-medium); }
+.md-btn--outlined { --btn-bg: transparent; --btn-fg: var(--md-primary); border: 1px solid var(--md-outline); }
+
+/* ---------- M3 Cards ---------- */
+.md-card { background: var(--md-surface-container-low); border-radius: var(--md-shape-xl); padding: 24px; }
+.md-card--elevated { background: var(--md-surface-container-lowest); box-shadow: var(--md-elevation-1); }
+.md-card--outlined { background: var(--md-surface); border: 1px solid var(--md-outline-variant); }
+.md-card--primary { background: var(--md-primary-container); color: var(--md-on-primary-container); }
+
+/* ---------- M3 Chips ---------- */
+.md-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 32px; padding: 0 14px;
+  border-radius: var(--md-shape-sm);
+  border: 1px solid var(--md-outline-variant);
+  background: transparent; color: var(--md-on-surface-variant);
+  font: var(--md-label-large);
+}
+.md-chip--primary { background: var(--md-primary-container); border-color: transparent; color: var(--md-on-primary-container); }
+.md-chip--filled { background: var(--md-secondary-container); border-color: transparent; color: var(--md-on-secondary-container); }
+/* 放在 primary 卡片上的 chip 用反色，避免同色叠同色 */
+.md-card--primary .md-chip {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--md-on-primary-container) 45%, transparent);
+  color: var(--md-on-primary-container);
+}
+
+/* ---------- Sections ---------- */
+.md-section { padding: 80px 0; }
+.md-section--low { background: var(--md-surface-container-low); }
+.md-section__head { display: grid; gap: 12px; max-width: 720px; margin-bottom: 40px; }
+.md-section__head h2 { font: var(--md-headline-medium); }
+.md-section__head p { font: var(--md-body-large); color: var(--md-on-surface-variant); }
+.md-section__head .md-chip { justify-self: start; }
+
+/* ---------- Hero ---------- */
+.hero { padding: 56px 0 72px; }
+.hero__grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); gap: 48px; align-items: center; }
+.hero h1 { font: var(--md-display-medium); letter-spacing: -.02em; margin: 20px 0 16px; }
+.hero h1 em { font-style: normal; color: var(--md-primary); }
+.hero__lead { font: var(--md-body-large); color: var(--md-on-surface-variant); max-width: 34em; }
+.hero__actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+.hero__meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+@media (max-width: 900px) {
+  .hero__grid { grid-template-columns: 1fr; gap: 36px; }
+  .hero h1 { font: var(--md-headline-large); }
+  .hero { padding-top: 32px; }
+}
+
+/* ---------- 界面预览（纯 CSS，无外部图片） ---------- */
+.mockups { position: relative; display: flex; justify-content: center; align-items: center; min-height: 460px; }
+.phone {
+  width: 290px; padding: 10px; border-radius: 38px;
+  background: var(--md-surface-container-high);
+  border: 1px solid var(--md-outline-variant);
+  box-shadow: var(--md-elevation-3);
+  position: relative; z-index: 2;
+}
+.phone__screen { border-radius: 30px; overflow: hidden; background: var(--md-surface); }
+.phone__notch { width: 72px; height: 6px; border-radius: var(--md-shape-full); background: var(--md-outline-variant); margin: 8px auto 2px; }
+.appbar-mini { display: flex; align-items: flex-start; justify-content: space-between; padding: 12px 16px 8px; }
+.appbar-mini__week { font: var(--md-headline-small); font-weight: 500; }
+.appbar-mini__sub { font: var(--md-label-medium); color: var(--md-on-surface-variant); }
+.appbar-mini__icons { display: flex; gap: 12px; color: var(--md-on-surface-variant); }
+.weekgrid { display: grid; grid-template-columns: 28px repeat(4, 1fr); gap: 3px; padding: 0 10px 10px; }
+.weekgrid__head { font: var(--md-label-small); color: var(--md-on-surface-variant); text-align: center; padding-bottom: 4px; }
+.weekgrid__head b { display: block; font: var(--md-label-large); color: var(--md-on-surface); }
+.weekgrid__head--today b { color: var(--md-primary); }
+.weekgrid__time { font: 9px/1.5 var(--md-body-small); color: var(--md-on-surface-variant); text-align: right; padding-right: 2px; }
+.weekgrid__cell { min-height: 44px; border-radius: var(--md-shape-md); background: var(--md-surface-container); }
+.weekgrid__cell--tall { min-height: 86px; }
+.course-pill {
+  border-radius: var(--md-shape-md); padding: 5px 6px; color: #fff;
+  display: flex; flex-direction: column; gap: 1px; overflow: hidden;
+  font: var(--md-label-small); line-height: 1.35;
+}
+.course-pill b { font: var(--md-label-medium); }
+.course-pill span { opacity: .92; font: 10px var(--md-body-small); }
+.c-mint { background: #2f7d63; }
+.c-violet { background: #5c55b8; }
+.c-rose { background: #b0195a; }
+.c-amber { background: #8a5100; }
+.c-blue { background: #0f5fa8; }
+.md-navbar {
+  display: flex; justify-content: space-around; align-items: center;
+  padding: 10px 0 14px; border-top: 1px solid var(--md-outline-variant); background: var(--md-surface-container);
+}
+.md-navbar span { display: grid; justify-items: center; gap: 4px; font: var(--md-label-medium); color: var(--md-on-surface-variant); }
+.md-navbar span.is-active { color: var(--md-on-secondary-container); }
+.md-navbar i { width: 52px; height: 30px; border-radius: var(--md-shape-full); display: grid; place-items: center; }
+.md-navbar span.is-active i { background: var(--md-secondary-container); }
+.md-navbar svg { width: 18px; height: 18px; }
+
+.watch {
+  position: absolute; right: -6px; bottom: 20px; width: 164px; z-index: 3;
+  padding: 9px; border-radius: 36px; background: var(--md-surface-container-highest);
+  border: 1px solid var(--md-outline-variant); box-shadow: var(--md-elevation-3);
+}
+.watch__screen { border-radius: 28px; padding: 14px 12px; text-align: center; background: #101614; color: #e6f4ee; }
+.watch__label { font: var(--md-label-small); letter-spacing: .1em; text-transform: uppercase; color: #8cd5b6; }
+.watch__time { font: var(--md-label-medium); color: #a8f0d1; margin-top: 2px; }
+.watch__title { font: var(--md-title-small); margin-top: 6px; }
+.watch__room { font: var(--md-label-small); color: #b3ccbe; margin-top: 2px; }
+.watch__progress { height: 4px; border-radius: var(--md-shape-full); background: #223029; margin-top: 10px; overflow: hidden; }
+.watch__progress i { display: block; height: 100%; width: 62%; background: #8cd5b6; }
+@media (max-width: 1080px) { .watch { right: 0; } }
+@media (max-width: 900px) { .watch { display: none; } }
+
+/* ---------- M3 list item ---------- */
+.md-list { display: grid; gap: 8px; }
+.md-listitem {
+  display: grid; grid-template-columns: 48px 1fr; align-items: center; gap: 16px;
+  padding: 16px 20px;
+}
+.md-listitem__icon {
+  width: 40px; height: 40px; border-radius: var(--md-shape-full);
+  display: grid; place-items: center;
+  background: var(--md-primary-container); color: var(--md-on-primary-container);
+}
+.md-listitem__title { font: var(--md-body-large); }
+.md-listitem__sub { font: var(--md-body-medium); color: var(--md-on-surface-variant); }
+
+/* ---------- Feature cards ---------- */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.feature { display: grid; gap: 12px; align-content: start; }
+.feature__icon {
+  width: 48px; height: 48px; border-radius: var(--md-shape-lg);
+  display: grid; place-items: center;
+  background: var(--md-secondary-container); color: var(--md-on-secondary-container);
+}
+.feature h3 { font: var(--md-title-medium); }
+.feature p { font: var(--md-body-medium); color: var(--md-on-surface-variant); }
+
+/* ---------- Log / FAQ ---------- */
+.log { display: grid; gap: 12px; }
+.log__item { display: grid; gap: 10px; }
+.log__head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; }
+.log__ver { font: var(--md-title-large); }
+.log__date { font: var(--md-label-medium); color: var(--md-on-surface-variant); }
+.log ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font: var(--md-body-medium); color: var(--md-on-surface-variant); }
+
+.faq { display: grid; gap: 10px; max-width: 880px; }
+details.faq__item { padding: 20px 24px; }
+details.faq__item summary {
+  cursor: pointer; list-style: none;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  font: var(--md-title-medium);
+}
+details.faq__item summary::-webkit-details-marker { display: none; }
+details.faq__item summary::after {
+  content: "+"; display: grid; place-items: center;
+  width: 24px; height: 24px; border-radius: var(--md-shape-full);
+  background: var(--md-secondary-container); color: var(--md-on-secondary-container);
+  font-weight: 700; flex: none;
+}
+details.faq__item[open] summary::after { content: "–"; }
+details.faq__item p { margin-top: 10px; font: var(--md-body-medium); color: var(--md-on-surface-variant); }
+
+/* ---------- Download / footer ---------- */
+.download { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; align-items: center; padding: 40px; }
+.download h2 { font: var(--md-headline-small); margin-bottom: 8px; }
+.download p { font: var(--md-body-medium); color: var(--md-on-primary-container); opacity: .9; }
+.download__actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.download .md-btn { --btn-bg: var(--md-primary); --btn-fg: var(--md-on-primary); }
+.download .md-btn--outlined { --btn-bg: transparent; --btn-fg: var(--md-on-primary-container); border-color: var(--md-on-primary-container); }
+@media (max-width: 780px) { .download { grid-template-columns: 1fr; padding: 28px; } }
+
+.md-footer {
+  border-top: 1px solid var(--md-outline-variant);
+  padding: 32px 0 44px;
+  font: var(--md-body-medium); color: var(--md-on-surface-variant);
+  background: var(--md-surface-container-low);
+}
+.md-footer__row { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; justify-content: space-between; }
+.md-footer__links { display: flex; flex-wrap: wrap; gap: 4px; }
+.md-footer__links a {
+  display: inline-flex; align-items: center; height: 36px; padding: 0 12px;
+  border-radius: var(--md-shape-full); color: var(--md-on-surface-variant);
+  font: var(--md-label-large);
+  transition: background var(--md-duration-short) var(--md-easing-standard);
+}
+.md-footer__links a:hover { background: var(--md-surface-container-high); text-decoration: none; color: var(--md-on-surface); }
+
+/* 渐进增强入场：默认可见，JS 可用时才淡入 */
+.reveal { opacity: 1; transform: none; }
+html.reveal-ready .reveal {
+  opacity: 0; transform: translateY(12px);
+  transition: opacity var(--md-duration-long) var(--md-easing-emphasized),
+              transform var(--md-duration-long) var(--md-easing-emphasized);
+}
+html.reveal-ready .reveal.is-in { opacity: 1; transform: none; }
+@media print { .reveal { opacity: 1 !important; transform: none !important; } }
+
+@media (min-width: 1240px) { .cards { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 860px) { .md-appbar__links { display: none; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">跳到主要内容</a>
+
+<header class="md-appbar">
+  <div class="wrap md-appbar__row">
+    <a class="md-appbar__title" href="#top" aria-label="Wakeup 课表">
+      <svg class="md-appbar__logo" viewBox="0 0 64 64" aria-hidden="true">
+        <rect width="64" height="64" rx="16" fill="#38664f"/>
+        <rect x="14" y="18" width="36" height="30" rx="6" fill="#a8f0d1"/>
+        <path d="M14 27h36" stroke="#38664f" stroke-width="3"/>
+        <path d="M24 14v8M40 14v8" stroke="#f7fbf8" stroke-width="4" stroke-linecap="round"/>
+        <path d="M23 37l5 5 12-12" stroke="#38664f" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Wakeup 课表
+    </a>
+    <nav class="md-appbar__links" aria-label="站内导航">
+      <a href="#features">功能</a>
+      <a href="#preview">界面</a>
+      <a href="#source">数据源</a>
+      <a href="#changelog">更新</a>
+      <a href="#faq">常见问题</a>
+    </nav>
+    <a class="md-btn md-btn--small" href="https://fastgit.giaocat.com/https://github.com/giaocat/Wakeup/releases/download/v1.3.3/wakeup-phone-1.3.3.apk" style="margin-left:8px">下载</a>
+  </div>
+</header>
+
+<main id="main">
+  <section class="hero" id="top">
+    <div class="wrap hero__grid">
+      <div>
+        <span class="md-chip md-chip--filled">Material 3 Expressive · Android / Wear OS</span>
+        <h1>你的大学课表，<br><em>一眼就够</em>。</h1>
+        <p class="hero__lead">
+          Wakeup 课表用 Material 3 的排版与色板，把「第几周、今天上什么、下一节课在哪」
+          收进一张干净的表。支持课表导入导出、大屏与折叠屏，下一节课还能同步到手表表盘。
+        </p>
+        <div class="hero__actions">
+          <a class="md-btn" href="https://fastgit.giaocat.com/https://github.com/giaocat/Wakeup/releases/download/v1.3.3/wakeup-phone-1.3.3.apk">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3a1 1 0 0 1 1 1v9.6l3.3-3.3a1 1 0 1 1 1.4 1.4l-5 5a1 1 0 0 1-1.4 0l-5-5a1 1 0 1 1 1.4-1.4L11 13.6V4a1 1 0 0 1 1-1ZM5 19a1 1 0 0 1 1 1h12a1 1 0 0 1 2 0v.5A1.5 1.5 0 0 1 18.5 22h-13A1.5 1.5 0 0 1 4 20.5V20a1 1 0 0 1 1-1Z"/></svg>
+            下载 APK
+          </a>
+          <a class="md-btn md-btn--outlined" href="https://github.com/giaocat/Wakeup">查看源码</a>
+        </div>
+        <div class="hero__meta">
+          <span class="md-chip">免费 · 无广告</span>
+          <span class="md-chip">不收集数据</span>
+          <span class="md-chip">手机 / 手表双端</span>
+        </div>
+      </div>
+
+      <div class="mockups" aria-hidden="true">
+        <div class="phone">
+          <div class="phone__notch"></div>
+          <div class="phone__screen">
+            <div class="appbar-mini">
+              <div>
+                <div class="appbar-mini__week">第 10 周</div>
+                <div class="appbar-mini__sub">本周 · 共 20 周</div>
+              </div>
+              <div class="appbar-mini__icons">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 11h18"/></svg>
+              </div>
+            </div>
+            <div class="weekgrid">
+              <div class="weekgrid__time"></div>
+              <div class="weekgrid__head">周一</div>
+              <div class="weekgrid__head">周二</div>
+              <div class="weekgrid__head weekgrid__head--today">周三 <b>28</b></div>
+              <div class="weekgrid__head">周四</div>
+
+              <div class="weekgrid__time">1</div>
+              <div class="weekgrid__cell weekgrid__cell--tall"><div class="course-pill c-violet"><b>高等数学A</b><span>F-105</span></div></div>
+              <div class="weekgrid__cell weekgrid__cell--tall"><div class="course-pill c-mint"><b>思想道德与法治</b><span>F-208</span></div></div>
+              <div class="weekgrid__cell weekgrid__cell--tall"><div class="course-pill c-amber"><b>中国近现代史</b><span>F-304</span></div></div>
+              <div class="weekgrid__cell weekgrid__cell--tall"></div>
+
+              <div class="weekgrid__time">3</div>
+              <div class="weekgrid__cell weekgrid__cell--tall"><div class="course-pill c-amber"><b>中国近现代史</b><span>F-304</span></div></div>
+              <div class="weekgrid__cell weekgrid__cell--tall"><div class="course-pill c-rose"><b>大学外语B</b><span>C-405</span></div></div>
+              <div class="weekgrid__cell weekgrid__cell--tall"><div class="course-pill c-violet"><b>高等数学A</b><span>F-105 · 提前</span></div></div>
+              <div class="weekgrid__cell weekgrid__cell--tall"></div>
+
+              <div class="weekgrid__time">5</div>
+              <div class="weekgrid__cell weekgrid__cell--tall"><div class="course-pill c-blue"><b>C语言程序设计</b><span>F-207</span></div></div>
+              <div class="weekgrid__cell weekgrid__cell--tall"><div class="course-pill c-amber"><b>学科专业导论</b><span>A-112</span></div></div>
+              <div class="weekgrid__cell weekgrid__cell--tall"></div>
+              <div class="weekgrid__cell weekgrid__cell--tall"><div class="course-pill c-rose"><b>大学外语B</b><span>C-101</span></div></div>
+            </div>
+            <div class="md-navbar">
+              <span class="is-active"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 11h18M8 3v4M16 3v4"/></svg></i>课表</span>
+              <span><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M7 15h5"/></svg></i>今日</span>
+              <span><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg></i>设置</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="watch">
+          <div class="watch__screen">
+            <div class="watch__label">下一节课</div>
+            <div class="watch__time">10:25 – 11:50</div>
+            <div class="watch__title">高等数学A（一）</div>
+            <div class="watch__room">F-105 · 第10周</div>
+            <div class="watch__progress"><i></i></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="md-section md-section--low" id="features">
+    <div class="wrap">
+      <div class="md-section__head reveal">
+        <span class="md-chip md-chip--primary">功能</span>
+        <h2>该有的都有，不该有的都没有</h2>
+        <p>打开就是课表：没有开屏广告、没有注册、没有多余权限。数据只存在你自己的设备上。</p>
+      </div>
+      <div class="cards">
+        <article class="md-card md-card--elevated feature reveal">
+          <div class="feature__icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 11h18M8 15h3M8 18h6"/></svg></div>
+          <h3>周视图 / 今日 / 下一节课</h3>
+          <p>横竖都能滚，单双周与分段周次按真实范围显示；「今日」只列今天的课，下一节课带倒计时。</p>
+        </article>
+        <article class="md-card md-card--elevated feature reveal">
+          <div class="feature__icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12" rx="3"/><path d="M9 3v2M15 3v2M9 19v2M15 19v2M3 9h2M3 15h2M19 9h2M19 15h2"/></svg></div>
+          <h3>手表端同步</h3>
+          <p>Wear OS 表盘复杂功能直接显示「下一节课」，还有信息块（Tile）；手机同步后自动推送到手表。</p>
+        </article>
+        <article class="md-card md-card--elevated feature reveal">
+          <div class="feature__icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2M12 4v16M8 20h8"/><path d="M4 11h4M4 15h4M16 11h4M16 15h4"/></svg></div>
+          <h3>大屏与折叠屏</h3>
+          <p>平板用侧边导航 + 双栏详情；折叠屏按铰链位置分栏，展开后课表与详情各占一半。</p>
+        </article>
+        <article class="md-card md-card--elevated feature reveal">
+          <div class="feature__icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M8 11l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></div>
+          <h3>导入 / 导出课表</h3>
+          <p>导出成 JSON 文件备份或换机迁移，导入后立即生效；走系统文件选择器，不需要存储权限。</p>
+        </article>
+        <article class="md-card md-card--elevated feature reveal">
+          <div class="feature__icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg></div>
+          <h3>作息时间对齐学校</h3>
+          <p>按学校作息表显示上课时间；F、G 座教学楼的 3、4 节自动提前 10 分钟提醒。</p>
+        </article>
+        <article class="md-card md-card--elevated feature reveal">
+          <div class="feature__icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 4h10a2 2 0 0 1 2 2v14l-7-4-7 4V6a2 2 0 0 1 2-2Z"/></svg></div>
+          <h3>离线可用</h3>
+          <p>课表缓存在本机，没网也能看；换周、切天、看详情都不会转圈等网络。</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="md-section" id="preview">
+    <div class="wrap">
+      <div class="md-section__head reveal">
+        <span class="md-chip md-chip--primary">界面</span>
+        <h2>M3 组件，为「看一眼就走」排版</h2>
+        <p>大标题写周次、色块区分课程、灰底标出没课的时间段；课程详情从底部 sheet 展开，不打断当前页面。</p>
+      </div>
+      <div class="md-list">
+        <div class="md-card md-card--outlined md-listitem reveal">
+          <span class="md-listitem__icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg></span>
+          <div>
+            <div class="md-listitem__title">色块 = 课程识别</div>
+            <div class="md-listitem__sub">每门课自动分配稳定颜色，周视图 / 今日 / 详情保持一致，深浅色下重新调对比度。</div>
+          </div>
+        </div>
+        <div class="md-card md-card--outlined md-listitem reveal">
+          <span class="md-listitem__icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span>
+          <div>
+            <div class="md-listitem__title">课程详情 sheet</div>
+            <div class="md-listitem__sub">点色块看课程名、教师、教室、周次、节次，以及距离上课还有多久。</div>
+          </div>
+        </div>
+        <div class="md-card md-card--outlined md-listitem reveal">
+          <span class="md-listitem__icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9Z"/></svg></span>
+          <div>
+            <div class="md-listitem__title">深浅色主题</div>
+            <div class="md-listitem__sub">跟随系统或手动切换，使用 M3 Expressive 的配色与 emphasized easing 动效。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="md-section md-section--low" id="source">
+    <div class="wrap">
+      <div class="md-section__head reveal">
+        <span class="md-chip md-chip--primary">数据源</span>
+        <h2>两种方式拿到课表，默认用更准的那个</h2>
+        <p>课表只在你自己的设备上解析和保存，不经过任何第三方服务器。</p>
+      </div>
+      <div class="cards">
+        <article class="md-card md-card--primary feature reveal">
+          <span class="md-chip md-chip--primary">默认</span>
+          <h3>分享链接 / token</h3>
+          <p>把课表分享链接（或其中的 token）粘贴进设置即可，无需登录；数据与教务系统分享页一致，周次最准。</p>
+        </article>
+        <article class="md-card md-card--elevated feature reveal">
+          <span class="md-chip">备选</span>
+          <h3>教务系统登录</h3>
+          <p>应用内打开教务系统登录页（账号 + 验证码或扫码），保存会话后自动同步；适合拿不到分享链接时。</p>
+        </article>
+        <article class="md-card md-card--elevated feature reveal">
+          <span class="md-chip">迁移</span>
+          <h3>课表文件导入导出</h3>
+          <p>导出当前课表为 JSON 文件，换设备时导入即可恢复，不依赖原数据源是否可用。</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="md-section" id="changelog">
+    <div class="wrap">
+      <div class="md-section__head reveal">
+        <span class="md-chip md-chip--primary">更新日志</span>
+        <h2>最近的改动</h2>
+        <p>完整记录见 <a href="https://github.com/giaocat/Wakeup/blob/main/CHANGELOG.md">CHANGELOG.md</a>。</p>
+      </div>
+      <div class="log">
+        <article class="md-card md-card--elevated log__item reveal">
+          <div class="log__head">
+            <span class="log__ver">1.4.0</span>
+            <span class="md-chip md-chip--filled">开发中</span>
+            <span class="log__date">课表导入 / 导出</span>
+          </div>
+          <ul>
+            <li>课表导出为 JSON 文件，可备份或换机迁移。</li>
+            <li>课表导入后立即生效并写缓存，与联网同步走同一条解析链路。</li>
+            <li>导入容错：非本应用文件、坏 JSON、更高版本格式都会给出可读提示且不覆盖现有课表。</li>
+          </ul>
+        </article>
+        <article class="md-card md-card--elevated log__item reveal">
+          <div class="log__head">
+            <span class="log__ver">1.3.3</span>
+            <span class="md-chip md-chip--filled">最新发布</span>
+          </div>
+          <ul>
+            <li>默认数据源改回「分享链接（token）」，教务系统登录保留为备选。</li>
+            <li>设置页数据源说明同步更新。</li>
+          </ul>
+        </article>
+        <article class="md-card md-card--elevated log__item reveal">
+          <div class="log__head">
+            <span class="log__ver">1.3.2</span>
+          </div>
+          <ul>
+            <li>新增教务系统数据源：应用内登录、逐周抓取并合并真实周次。</li>
+            <li>修复登录后反复要求登录、解析为空、登录页排版过窄。</li>
+            <li>同步状态写明当前数据来源。</li>
+          </ul>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="md-section md-section--low" id="faq">
+    <div class="wrap">
+      <div class="md-section__head reveal">
+        <span class="md-chip md-chip--primary">常见问题</span>
+        <h2>你可能想知道</h2>
+      </div>
+      <div class="faq">
+        <details class="md-card md-card--outlined faq__item reveal">
+          <summary>会收集我的账号或课表吗？</summary>
+          <p>不会。课表解析、缓存、登录会话都只保存在手机私有目录；应用没有服务器，也不含统计 SDK。设置里可随时清除缓存与会话。</p>
+        </details>
+        <details class="md-card md-card--outlined faq__item reveal">
+          <summary>为什么默认用分享链接，而不是自动登录？</summary>
+          <p>分享页数据与学校实际课表一致；直接抓取教务系统时周次有时会和实际不一致，所以放在备选位置。</p>
+        </details>
+        <details class="md-card md-card--outlined faq__item reveal">
+          <summary>手表上可以登录教务系统吗？</summary>
+          <p>不行。新数据源下由手机同步成功后推送到手表，手表设置页会提示「课表由手机同步」。</p>
+        </details>
+        <details class="md-card md-card--outlined faq__item reveal">
+          <summary>支持哪些系统版本？</summary>
+          <p>手机端 Android 6.0（API 23）及以上，手表端 Wear OS 3（API 26）及以上；界面基于 Material 3 Expressive。</p>
+        </details>
+        <details class="md-card md-card--outlined faq__item reveal">
+          <summary>课表解析失败怎么办？</summary>
+          <p>先确认链接 / token 未过期；仍失败请在 GitHub 提 issue，附学校名称与失败提示文本（不要贴账号密码）。</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <section class="md-section" id="download">
+    <div class="wrap">
+      <div class="md-card md-card--primary download reveal">
+        <div>
+          <h2>下载 Wakeup 课表</h2>
+          <p>安装包来自 GitHub Releases，经 <strong>fastgit.giaocat.com</strong> 加速下载；固定签名可直接覆盖升级，开源项目欢迎 issue 与 PR。</p>
+          <p style="margin-top:10px">
+            <a href="https://github.com/giaocat/Wakeup/releases">全部版本与更新说明 →</a>
+          </p>
+        </div>
+        <div class="download__actions">
+          <a class="md-btn" href="https://fastgit.giaocat.com/https://github.com/giaocat/Wakeup/releases/download/v1.3.3/wakeup-phone-1.3.3.apk">手机版 APK</a>
+          <a class="md-btn md-btn--outlined" href="https://fastgit.giaocat.com/https://github.com/giaocat/Wakeup/releases/download/v1.3.3/wakeup-wear-1.3.3.apk">手表版 APK</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="md-footer">
+  <div class="wrap md-footer__row">
+    <div>© <span id="year">2026</span> Wakeup 课表 · MIT License · 与学校官方无关</div>
+    <nav class="md-footer__links" aria-label="页脚">
+      <a href="https://github.com/giaocat/Wakeup">GitHub</a>
+      <a href="https://github.com/giaocat/Wakeup/releases">Releases</a>
+      <a href="https://github.com/giaocat/Wakeup/blob/main/CHANGELOG.md">更新日志</a>
+      <a href="https://github.com/giaocat/Wakeup/blob/main/LICENSE">许可协议</a>
+      <a href="https://github.com/giaocat/Wakeup/issues">反馈</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+  document.getElementById('year').textContent = String(new Date().getFullYear());
+
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!reduce && 'IntersectionObserver' in window) {
+    document.documentElement.classList.add('reveal-ready');
+    const io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add('is-in');
+        io.unobserve(entry.target);
+      });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.06 });
+    document.querySelectorAll('.reveal').forEach(function (el) { io.observe(el); });
+    window.setTimeout(function () {
+      document.querySelectorAll('.reveal:not(.is-in)').forEach(function (el) { el.classList.add('is-in'); });
+    }, 2000);
+  }
+</script>
+</body>
+</html>

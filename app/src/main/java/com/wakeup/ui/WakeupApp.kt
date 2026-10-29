@@ -21,6 +21,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import kotlinx.coroutines.launch
 import androidx.compose.material3.Text
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.Composable
@@ -28,6 +29,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -92,6 +94,7 @@ fun WakeupApp(
     val cacheSizeBytes by viewModel.cacheSizeBytes.collectAsStateWithLifecycle()
     val update by viewModel.update.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val uiScope = rememberCoroutineScope()
     val context = LocalContext.current
 
     // 尺寸类 + 折叠姿态合并成一份，屏幕内部只读这个对象。
@@ -193,7 +196,10 @@ fun WakeupApp(
                     onDynamicColorChange = viewModel::setDynamicColor,
                     onHideUnscheduledChange = viewModel::setHideUnscheduled,
                     onRefresh = viewModel::sync,
-                    onClearCache = viewModel::clearCache,
+onClearCache = viewModel::clearCache,
+                    onExportJson = viewModel::exportTimetableJson,
+                    onImportJson = viewModel::importTimetableJson,
+                    onShowMessage = { message -> uiScope.launch { snackbarHostState.showSnackbar(message) } },
                     onOpenRelease = { url ->
                         runCatching {
                             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))

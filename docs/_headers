@@ -1,0 +1,16 @@
+# 基础安全响应头（Cloudflare Pages 会在构建时读取本文件）
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), camera=(), microphone=(), payment=()
+  # 页面是单文件：内联 CSS/JS + data: 图标，没有外部字体/脚本/图片
+  Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; font-src 'self'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'
+
+# HTML 始终回源校验，避免发版后仍命中旧页面
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+# 其它静态资源（当前仅 404 页）短缓存
+/404.html
+  Cache-Control: public, max-age=300

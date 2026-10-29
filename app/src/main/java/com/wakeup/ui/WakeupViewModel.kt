@@ -8,6 +8,7 @@ import com.wakeup.data.remote.SyncResult
 import com.wakeup.data.repository.ThemeMode
 import com.wakeup.data.repository.TimetableSourceKind
 import com.wakeup.data.repository.UserSettings
+import com.wakeup.data.export.ImportResult
 import com.wakeup.data.session.ZfSession
 import com.wakeup.data.update.UpdateChecker
 import com.wakeup.data.update.UpdateInfo
@@ -376,6 +377,45 @@ class WakeupViewModel(
 
 
 
+/** 导出当前课表为 JSON 文本（供「导出课表」写文件）；没有可导出的数据时返回 null。 */
+    fun exportTimetableJson(): String? {
+        val current = settings.value
+        val sourceUrl = if (current.sourceKind == TimetableSourceKind.ZF_LOGIN) {
+            current.zfBaseUrl
+        } else {
+            current.timetableUrl
+        }
+        return container.timetableRepository.exportJson(sourceUrl)
+    }
+
+    /** 导入课表文件；结果通过 Snackbar（errorMessage 通道）告知用户。 */
+    fun importTimetableJson(text: String) {
+        viewModelScope.launch {
+            when (val result = container.timetableRepository.importFromExport(text)) {
+                is ImportResult.Success -> {
+                    container.timetableRepository.cachedTimetable()?.let { timetable ->
+                        _schedule.update { state ->
+                            val currentWeek = timetable.term.weekOf(TimeUtils.today())
+                            state.copy(
+                                timetable = timetable,
+                                selectedWeek = (currentWeek ?: state.selectedWeek)
+                                    .coerceIn(1, timetable.term.totalWeeks.coerceAtLeast(1)),
+                                currentWeek = currentWeek,
+                                today = TimeUtils.today(),
+                                lastSyncedAt = container.timetableRepository.lastSyncedAt,
+                                userName = container.timetableRepository.lastUser,
+                                isFromCache = false,
+                                errorMessage = "已导入课表：${result.courseCount} 门课",
+                                dataRevision = state.dataRevision + 1,
+                            )
+                        }
+                    }
+                }
+
+                is ImportResult.Failure -> _schedule.update { it.copy(errorMessage = result.message) }
+            }
+        }
+    }
     /** 退出教务系统登录（会话被清，下次同步会要求重新登录）。 */
     fun logoutZf() {
         viewModelScope.launch {

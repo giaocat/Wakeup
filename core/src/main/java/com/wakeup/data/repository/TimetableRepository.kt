@@ -6,6 +6,8 @@ import com.wakeup.data.cache.toResponseOrNull
 import com.wakeup.data.remote.SyncResult
 import com.wakeup.data.remote.TimetableMapper
 import com.wakeup.data.remote.TimetableRemoteDataSource
+import com.wakeup.data.export.ImportResult
+import com.wakeup.data.export.TimetableExportCodec
 import com.wakeup.data.remote.WakeupApiFactory
 import com.wakeup.data.remote.ZfRemoteDataSource
 import com.wakeup.domain.Timetable
@@ -248,6 +250,38 @@ class TimetableRepository(
         )
         onCacheChanged?.invoke()
         return result
+    }
+
+/** 导出当前课表为可再导入的 JSON 文本；没有任何缓存时返回 null。 */
+    fun exportJson(sourceUrl: String): String? {
+        val payload = cachedRawPayload() ?: return null
+        return TimetableExportCodec.encode(payload, sourceUrl)
+    }
+
+    /**
+     * 从导出文件导入课表。
+     *
+     * 走的是和同步完全相同的链路（payload → 接口模型 → 领域模型 → 写缓存），
+     * 所以导入后的数据、缓存、更新时间与联网同步效果一致；解析失败不会覆盖现有缓存。
+     */
+    suspend fun importFromExport(text: String): ImportResult {
+        val exported = TimetableExportCodec.decode(text).getOrElse { error ->
+            return ImportResult.Failure(
+                (error as? TimetableExportCodec.ImportException)?.message ?: "导入失败：文件无法识别",
+            )
+        }
+        val sourceUrl = exported.sourceUrl.ifBlank { cachedSourceUrl }
+        val response = CachedTimetable(
+            sourceUrl = sourceUrl,
+            payload = exported.payload,
+            syncedAt = exported.exportedAt,
+        ).toResponseOrNull() ?: return ImportResult.Failure("导入失败：文件里的课表数据无法解析")
+
+        val result = adoptSuccess(SyncResult.Success(response, exported.payload), sourceUrl)
+        return when (result) {
+            is SyncResult.Success -> ImportResult.Success(response.table?.list?.size ?: 0)
+            is SyncResult.Failure -> ImportResult.Failure("导入失败：${result.message}")
+        }
     }
 
     /** 清空内存与磁盘缓存。 */
