@@ -9,11 +9,11 @@ kotlin = "2.4.21"
 # 以下版本全部控制在 minCompileSdk <= 36：
 # 公开 SDK 仓库最高只提供 platforms;android-36，android-37 仍是 preview 频道，
 # CI 上无法通过 sdkmanager 安装，所以 compileSdk 固定 36、依赖也要匹配。
-coreKtx = "1.18.0"
+coreKtx = "1.19.1"
 # 2.11.0 的 lifecycle-*-compose 要求 compileSdk 37，2.10.0 是 35
 lifecycle = "2.10.0"
 activityCompose = "1.13.0"
-composeBom = "2026.06.01"
+composeBom = "2026.09.00"
 # 1.5.0-alpha01 是仍带 Material 3 Expressive API（MaterialExpressiveTheme /
 # MotionScheme / MaterialShapes / LoadingIndicator）且 minCompileSdk=35 的最后几个版本；
 # alpha29 起 minCompileSdk 变为 37。
@@ -29,7 +29,7 @@ kotlinxCoroutines = "1.11.0"
 # 注意：SDK 的 AAR 声明 minSdk 29，而本项目 minSdk 26，
 # 所以 AndroidManifest.xml 里用 tools:overrideLibrary 覆盖（那里有详细说明）。
 # AAR 的 minCompileSdk=1，不限制我们锁定的 compileSdk 36。
-smartspacer = "1.1"
+smartspacer = "1.1.2"
 # Wear OS 版（:wear）用的是 Compose for Wear OS 3。
 # 1.7.x 的 aar-metadata 里 minCompileSdk=37，而我们锁死 compileSdk 36
 # （公开 SDK 仓库没有 android-37），所以停在 1.6.2（minCompileSdk=35）。
