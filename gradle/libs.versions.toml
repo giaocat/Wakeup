@@ -17,10 +17,10 @@ composeBom = "2026.09.00"
 # 1.5.0-alpha01 是仍带 Material 3 Expressive API（MaterialExpressiveTheme /
 # MotionScheme / MaterialShapes / LoadingIndicator）且 minCompileSdk=35 的最后几个版本；
 # alpha29 起 minCompileSdk 变为 37。
-material3 = "1.5.0-alpha01"
+material3 = "1.5.0-beta02"
 material3Adaptive = "1.4.0-alpha03"
-navigation = "2.9.8"
-datastore = "1.2.1"
+navigation = "2.10.2"
+datastore = "1.3.0"
 retrofit = "3.0.0"
 okhttp = "5.5.1"
 kotlinxSerialization = "1.12.0"
