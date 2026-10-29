@@ -5,7 +5,7 @@ appVersionName = "1.4.0"
 appVersionCode = "24"
 
 agp = "9.4.1"
-kotlin = "2.2.10"
+kotlin = "2.4.21"
 # 以下版本全部控制在 minCompileSdk <= 36：
 # 公开 SDK 仓库最高只提供 platforms;android-36，android-37 仍是 preview 频道，
 # CI 上无法通过 sdkmanager 安装，所以 compileSdk 固定 36、依赖也要匹配。
@@ -23,8 +23,8 @@ navigation = "2.9.8"
 datastore = "1.2.1"
 retrofit = "3.0.0"
 okhttp = "5.2.1"
-kotlinxSerialization = "1.9.0"
-kotlinxCoroutines = "1.10.2"
+kotlinxSerialization = "1.12.0"
+kotlinxCoroutines = "1.11.0"
 # Smartspacer 插件 SDK（Apache 2.0）。1.1 是 Maven Central 上 sdk-plugin 的最新版。
 # 注意：SDK 的 AAR 声明 minSdk 29，而本项目 minSdk 26，
 # 所以 AndroidManifest.xml 里用 tools:overrideLibrary 覆盖（那里有详细说明）。
