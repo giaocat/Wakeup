@@ -22,7 +22,7 @@ material3Adaptive = "1.4.0-alpha03"
 navigation = "2.9.8"
 datastore = "1.2.1"
 retrofit = "3.0.0"
-okhttp = "5.2.1"
+okhttp = "5.5.1"
 kotlinxSerialization = "1.12.0"
 kotlinxCoroutines = "1.11.0"
 # Smartspacer 插件 SDK（Apache 2.0）。1.1 是 Maven Central 上 sdk-plugin 的最新版。
