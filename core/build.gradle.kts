@@ -20,8 +20,8 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        // 与 :app 保持一致（minSdk 23），保证两端可用的 Java/Android API 相同
-        minSdk = 23
+        // 与 :app 保持一致（minSdk 24），保证两端可用的 Java/Android API 相同
+        minSdk = 24
     }
 
     compileOptions {

@@ -89,8 +89,10 @@ fun UpdateDialog(
             TextButton(
                 onClick = {
                     runCatching {
+                        // 优先用版本清单里的加速直链；没有清单时退回发布页
+                        val target = info.downloadUrl.ifBlank { info.releaseUrl }
                         context.startActivity(
-                            Intent(Intent.ACTION_VIEW, Uri.parse(info.releaseUrl))
+                            Intent(Intent.ACTION_VIEW, Uri.parse(target))
                                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                         )
                     }

@@ -35,18 +35,18 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 
 - **JDK**：17 及以上（Android Studio 自带的 JBR 25 可用）
 - **Gradle**：9.6.0（由 `gradle/wrapper` 指定，首次构建自动下载）
-- **AGP**：9.4.1，**Kotlin**：2.2.10（AGP 9 自带 Kotlin 支持，无需再声明 `kotlin.android` 插件）
-- **compileSdk / targetSdk**：**37**，**minSdk**：**23**（手机端，Android 6.0；手表端 `:wear` 为 **26**，见第四节）
+- **AGP**：9.4.1，**Kotlin**：2.4.21（AGP 9 自带 Kotlin 支持，无需再声明 `kotlin.android` 插件）
+- **compileSdk / targetSdk**：**37**，**minSdk**：**24**（手机端，Android 7.0；手表端 `:wear` 为 **26**，见第四节）
 - **包名**：`com.wakeup`（debug 构建为 `com.wakeup.debug`）
 
-> **minSdk 为什么停在 23 / 26？**
-> 手机端 23 是 Compose 1.11（`animation-core`）硬性声明的下限，再往下调会在合并清单时直接失败；
+> **minSdk 为什么是 24 / 26？**
+> 手机端原先能到 23（Compose 1.11 的下限），但 navigation 2.10、material3 1.5、datastore 1.3
+> 都要求 24，manifest merger 在 23 会直接失败，所以统一提到 **24**（Android 7.0）；
 > 手表端本来能到 25（Compose for Wear OS 的下限），但**表盘复杂功能**库
 > （`androidx.wear.watchface:watchface-complications-data:1.3.0`）要求 26，
 > 而表盘小组件是核心功能，所以取 26。两端的 `java.time`
 > （`LocalDate` / `ZoneId` / `DateTimeFormatter` 等）都靠 **core library desugaring**
 > （`desugar_jdk_libs`）下放，所以低版本系统上不会 `NoClassDefFoundError`。
-> 顺带：`m3-adaptive` 没有用到，且它会把手机端 minSdk 顶到 24，因此没有引入；
 > 大屏 / 折叠屏适配是手写的 `WindowSizeClass` + `FoldingFeature`（见第五节）。
 
 > **compileSdk / targetSdk 为什么是 37？**
@@ -315,7 +315,7 @@ adb install -r wakeup-wear-1.0.8.apk
 - **手表能联网，或与手机配对**：旧分享链接模式下手表可以自己联网抓课表；用**新教务系统**时手表无法登录，
   必须和手机配对、由手机登录并同步一次（手机同步成功后会自动把课表推给手表，见下面「与手机端的关系」），
   手表即使暂时没网也能显示手机同步下来的那份。
-- 手机端 `minSdk = 23`（Android 6.0）。
+- 手机端 `minSdk = 24`（Android 7.0）。
 
 ### 第一次使用（两种，二选一）
 

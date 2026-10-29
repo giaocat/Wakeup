@@ -36,6 +36,21 @@ python -m http.server 8791 --bind 127.0.0.1 --directory docs
 
 ## 发版时要同步的地方
 
+- **`docs/version.json`**：App 的「检查更新」直接读这个文件（经加速站的 raw 链接）。
+  发版后必须改这里的 `version`、`versionCode` 和 `downloadUrl`，否则老用户检测不到新版本。
+
+  ```json
+  {
+    "version": "1.4.1",
+    "versionCode": 25,
+    "downloadUrl": "https://fastgit.giaocat.com/https://github.com/giaocat/Wakeup/releases/download/v1.4.1/wakeup-phone-1.4.1.apk",
+    "pageUrl": "https://github.com/giaocat/Wakeup/releases",
+    "notes": "一句话更新说明"
+  }
+  ```
+
+  App 端的读取顺序：`version.json`（加速 raw）→ `releases.atom`（直连）→ `api.github.com`（直连）。
+
 - `index.html` 里 4 个下载按钮指向 **fastgit 加速直链**，格式：
 
   ```

@@ -13,6 +13,21 @@
 
 ---
 
+## 1.4.1
+
+### 调整
+
+- **手机端 minSdk 23 → 24（Android 7.0+）**：新版 AndroidX 里 navigation 2.10、material3 1.5、datastore 1.3
+  都要求 minSdk 24，manifest merger 会直接拒绝 23。手表端仍是 Wear OS 3（API 26）。
+- **检查更新改走加速站**：不再依赖 `api.github.com`（加速站代理不到），改为优先读仓库里的
+  `docs/version.json` 版本清单（raw 链接经 `fastgit.giaocat.com` 加速），
+  清单里直接给出**加速下载直链**，点「去下载」即可拿到 APK；清单拿不到时再依次退回 atom / GitHub API。
+- 发版流程新增一步：更新 `docs/version.json` 的版本号与下载直链。
+
+### 依赖
+
+- navigation **2.10.2**、material3 **1.5.0-beta02**、datastore **1.3.0**（Dependabot PR #4 剩余部分，
+  随 minSdk 24 一并启用）。
 ## 1.4.0
 
 ### 新增

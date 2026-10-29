@@ -18,7 +18,7 @@ android {
         applicationId = "com.wakeup"
         // 23 = Android 6.0：Compose 1.11（animation-core）要求的最低值就是 23，
         // 再往下系统组件就不支持了。java.time 靠 core library desugaring 下放，见 compileOptions
-        minSdk = 23
+        minSdk = 24
         targetSdk = 37
         // 版本号单点定义在 gradle/libs.versions.toml（CI 会校验 tag 与它一致）
         versionCode = libs.versions.appVersionCode.get().toInt()
@@ -28,6 +28,12 @@ android {
 
         // 「检查更新」用的仓库信息：读取 GitHub Releases 判断是否有新版本
         buildConfigField("String", "GITHUB_REPO", "\"giaocat/Wakeup\"")
+        // 更新检测首选：仓库里的版本清单，经 fastgit 加速读取（api.github.com 走加速站会 404）
+        buildConfigField(
+            "String",
+            "VERSION_MANIFEST_URL",
+            "\"https://fastgit.giaocat.com/https://raw.githubusercontent.com/giaocat/Wakeup/main/docs/version.json\"",
+        )
         buildConfigField(
             "String",
             "RELEASES_API_URL",

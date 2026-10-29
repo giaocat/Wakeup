@@ -17,9 +17,21 @@ data class UpdateInfo(
     val releaseUrl: String,
     val releaseName: String?,
     val notes: String?,
+    /** 直链安装包地址（经 fastgit 加速）；为空时退回 [releaseUrl]。 */
+    val downloadUrl: String = "",
 ) {
     val versionLabel: String get() = "v$version"
 }
+
+/** 仓库里的版本清单（`docs/version.json`）。 */
+@Serializable
+private data class VersionManifest(
+    val version: String = "",
+    val versionCode: Int = 0,
+    val downloadUrl: String = "",
+    val pageUrl: String = "",
+    val notes: String? = null,
+)
 
 /** GitHub Releases `latest` 接口里我们需要的字段。 */
 @Serializable
@@ -110,6 +122,8 @@ class UpdateChecker(
     private val releasesPageUrl: String = BuildConfig.RELEASES_PAGE_URL,
     /** 例如 `https://github.com/giaocat/Wakeup/releases.atom`。 */
     private val atomUrl: String = BuildConfig.RELEASES_ATOM_URL,
+    /** 仓库里的版本清单（经 fastgit 加速读取），是更新检测的首选。 */
+    private val manifestUrl: String = BuildConfig.VERSION_MANIFEST_URL,
 ) {
 
     private val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
@@ -121,6 +135,8 @@ class UpdateChecker(
         .build()
 
     suspend fun check(): UpdateResult = withContext(Dispatchers.IO) {
+        // 0) 版本清单：走 fastgit 加速，国内网络也能拿到，并且自带加速下载直链
+        runCatching { fetchManifest() }.getOrNull()?.let { return@withContext it }
         // 1) atom：无限流，且能拿到发布说明
         runCatching { fetchAtom() }.getOrNull()?.let { releases ->
             pickNewest(releases)?.let { return@withContext it }
@@ -130,6 +146,39 @@ class UpdateChecker(
         // 2) 退回 REST API
         runCatching { fetchApi() }.getOrNull()?.let { return@withContext it }
         UpdateResult.Failed("检查更新失败：网络异常或接口不可用")
+    }
+
+    /**
+     * 读 `docs/version.json` 版本清单。
+     *
+     * 返回 null 表示这一路没拿到（网络失败 / 内容不合法），交给 atom 与 API 兜底；
+     * 拿到清单且不比当前版本新时直接返回 [UpdateResult.UpToDate]，不再请求 GitHub。
+     */
+    private fun fetchManifest(): UpdateResult? {
+        val request = Request.Builder()
+            .url(manifestUrl)
+            .header("User-Agent", USER_AGENT)
+            .build()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) return null
+            val body = response.body?.string().orEmpty()
+            if (body.isBlank()) return null
+            val manifest = runCatching {
+                json.decodeFromString(VersionManifest.serializer(), body)
+            }.getOrNull() ?: return null
+            val version = manifest.version.removePrefix("v").removePrefix("V").trim()
+            if (version.isBlank()) return null
+            if (!VersionCompare.isNewer(version, currentVersion)) return UpdateResult.UpToDate
+            return UpdateResult.Available(
+                UpdateInfo(
+                    version = version,
+                    releaseUrl = manifest.pageUrl.ifBlank { releasesPageUrl },
+                    releaseName = null,
+                    notes = manifest.notes?.takeIf { it.isNotBlank() },
+                    downloadUrl = manifest.downloadUrl,
+                ),
+            )
+        }
     }
 
     /** 解析 atom feed，取出所有正式发布。 */
