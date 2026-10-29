@@ -22,7 +22,7 @@ jobs:
     steps:
       # setup-gradle 依赖仓库里已有提交，所以 checkout 必须放在第一步
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
