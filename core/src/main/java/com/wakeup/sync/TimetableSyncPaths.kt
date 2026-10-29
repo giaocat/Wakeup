@@ -25,4 +25,10 @@ object TimetableSyncPaths {
 
     /** gzip + Base64 之后的原始课表 JSON（DataMap 里是 String）。 */
     const val KEY_PAYLOAD = "payload"
+
+    /** 手表 → 手机：请把当前课表推过来（MessageClient，无负载）。 */
+    const val REQUEST_SYNC = "$PREFIX/request_sync"
+
+    /** 手机 → 手表：请求的处理结果（`ok` / `empty`），用来在手表上显示成功与否。 */
+    const val SYNC_RESULT = "$PREFIX/sync_result"
 }

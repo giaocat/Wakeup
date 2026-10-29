@@ -57,6 +57,10 @@ data class ScheduleUiState(
     val needsZfLogin: Boolean = false,
     /** 当前是否持有教务系统登录会话。 */
     val zfLoggedIn: Boolean = false,
+    /** 「同步到手表」的状态文案（空串表示没操作过）。 */
+    val watchSyncStatus: String = "",
+    /** null=进行中/未知，true=成功，false=失败。 */
+    val watchSyncOk: Boolean? = null,
 ) {
     val isTermActive: Boolean get() = currentWeek != null
 
@@ -413,6 +417,27 @@ class WakeupViewModel(
                 }
 
                 is ImportResult.Failure -> _schedule.update { it.copy(errorMessage = result.message) }
+            }
+        }
+    }
+/** 「同步到手表」：把当前缓存里的课表推给已配对的手表，并把结果写进状态。 */
+    fun syncToWatch() {
+        if (container.timetableRepository.cachedRawPayload().isNullOrBlank()) {
+            _schedule.update { it.copy(watchSyncStatus = "还没有可推送的课表：请先同步一次", watchSyncOk = false) }
+            return
+        }
+        viewModelScope.launch {
+            _schedule.update { it.copy(watchSyncStatus = "正在推送到手表…", watchSyncOk = null) }
+            val pushed = PhoneTimetableSync.push(container.appContext)
+            _schedule.update {
+                it.copy(
+                    watchSyncStatus = if (pushed) {
+                        "已推送到手表 ✓（手表收到后即可离线查看）"
+                    } else {
+                        "推送失败：没有连接的手表，或传输超出限制"
+                    },
+                    watchSyncOk = pushed,
+                )
             }
         }
     }

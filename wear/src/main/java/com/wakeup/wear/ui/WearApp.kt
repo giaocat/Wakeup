@@ -30,6 +30,7 @@ sealed interface WearDestination {
 fun WearApp(
     state: WearUiState,
     onRefresh: () -> Unit,
+    onSyncFromPhone: () -> Unit,
     onSelectWeek: (Int) -> Unit,
     onSelectDay: (Int) -> Unit,
     onSaveToken: (String) -> Unit,
@@ -65,6 +66,7 @@ fun WearApp(
             WearDestination.Settings -> SettingsScreen(
                 state = state,
                 onRefresh = onRefresh,
+            onSyncFromPhone = onSyncFromPhone,
                 onOpenWeekPicker = { destination = WearDestination.Weeks },
                 onOpenToken = { destination = WearDestination.Token },
                 onClearCache = {

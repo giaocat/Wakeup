@@ -1,8 +1,8 @@
 [versions]
 # 应用版本：**单点定义**。`app` 与 `wear` 两个模块都从这里读，
 # 避免两边手改 versionName/versionCode 改漏一个（CI 会校验 tag 与这里的值一致）。
-appVersionName = "1.4.1"
-appVersionCode = "25"
+appVersionName = "1.4.2"
+appVersionCode = "26"
 
 agp = "9.4.1"
 kotlin = "2.4.21"

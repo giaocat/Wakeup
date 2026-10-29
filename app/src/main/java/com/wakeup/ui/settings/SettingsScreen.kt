@@ -34,6 +34,7 @@ import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.School
 import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.Watch
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
@@ -107,6 +108,7 @@ fun SettingsScreen(
     onHideUnscheduledChange: (Boolean) -> Unit,
     onRefresh: () -> Unit,
     onClearCache: () -> Unit,
+    onSyncToWatch: () -> Unit = {},
     onExportJson: () -> String? = { null },
     onImportJson: (String) -> Unit = {},
     onShowMessage: (String) -> Unit = {},
@@ -190,6 +192,7 @@ fun SettingsScreen(
                 onHideUnscheduledChange = onHideUnscheduledChange,
                 onRefresh = onRefresh,
                 onClearCache = { confirmClearCache = true },
+                onSyncToWatch = onSyncToWatch,
                 onExport = { exportLauncher.launch(TimetableExportCodec.defaultFileName(LocalDate.now().toString())) },
                 onImport = { importLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) },
                 updateChecking = updateChecking,
@@ -301,6 +304,7 @@ private fun SettingsContent(
     onClearCache: () -> Unit,
     onExport: () -> Unit,
     onImport: () -> Unit,
+    onSyncToWatch: () -> Unit,
     updateChecking: Boolean,
     updateError: String?,
     latestVersion: String?,
@@ -343,6 +347,7 @@ private fun SettingsContent(
                             onClear = onClearCache,
                             onExport = onExport,
                             onImport = onImport,
+                            onSyncToWatch = onSyncToWatch,
                         )
                     }
                     Column(
@@ -396,6 +401,7 @@ private fun SettingsContent(
                     onClear = onClearCache,
                     onExport = onExport,
                     onImport = onImport,
+                    onSyncToWatch = onSyncToWatch,
                 )
             }
             item(key = "appearance") {
@@ -572,6 +578,9 @@ private fun CacheSection(
     onClear: () -> Unit,
     onExport: () -> Unit,
     onImport: () -> Unit,
+    onSyncToWatch: () -> Unit,
+    watchSyncStatus: String = "",
+    watchSyncOk: Boolean? = null,
 ) {
     SettingsSection(title = "数据与缓存") {
         ListItem(
@@ -591,6 +600,23 @@ private fun CacheSection(
                     enabled = cacheSizeBytes > 0 || hasData,
                 ) {
                     Text("清空")
+                }
+            },
+        )
+        SettingDivider()
+        ListItem(
+            headlineContent = { Text("同步到手表") },
+            supportingContent = {
+                Text(
+                    watchSyncStatus.ifBlank {
+                        "把当前课表推给已配对的 Wear OS 手表，手表没有网络也能看。"
+                    },
+                )
+            },
+            leadingContent = { Icon(Icons.Outlined.Watch, contentDescription = null) },
+            trailingContent = {
+                TextButton(onClick = onSyncToWatch, enabled = hasData) {
+                    Text(if (watchSyncOk == null && watchSyncStatus.isNotEmpty()) "推送中" else "推送")
                 }
             },
         )

@@ -33,6 +33,7 @@ import com.wakeup.wear.WearUiState
 fun SettingsScreen(
     state: WearUiState,
     onRefresh: () -> Unit,
+    onSyncFromPhone: () -> Unit,
     onOpenWeekPicker: () -> Unit,
     onOpenToken: () -> Unit,
     onClearCache: () -> Unit,
@@ -61,6 +62,21 @@ fun SettingsScreen(
                 ListHeader {
                     Text("设置", style = MaterialTheme.typography.titleSmall, maxLines = 1)
                 }
+            }
+
+            item(key = "phone-sync") {
+                ActionCard(
+                    title = if (state.phoneSyncOk == null && state.phoneSyncStatus.isNotEmpty()) {
+                        "正在从手机同步…"
+                    } else {
+                        "从手机同步"
+                    },
+                    subtitle = state.phoneSyncStatus.ifBlank {
+                        "让手机把最新课表推过来（手表无法自行登录教务系统）"
+                    },
+                    enabled = !state.isLoading,
+                    onClick = onSyncFromPhone,
+                )
             }
 
             item(key = "refresh") {

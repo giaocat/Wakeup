@@ -197,6 +197,7 @@ fun WakeupApp(
                     onHideUnscheduledChange = viewModel::setHideUnscheduled,
                     onRefresh = viewModel::sync,
 onClearCache = viewModel::clearCache,
+                    onSyncToWatch = viewModel::syncToWatch,
                     onExportJson = viewModel::exportTimetableJson,
                     onImportJson = viewModel::importTimetableJson,
                     onShowMessage = { message -> uiScope.launch { snackbarHostState.showSnackbar(message) } },

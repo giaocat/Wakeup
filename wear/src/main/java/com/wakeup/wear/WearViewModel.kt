@@ -1,5 +1,11 @@
 package com.wakeup.wear
 
+import android.content.Context
+import com.google.android.gms.tasks.Tasks
+import com.google.android.gms.wearable.Wearable
+import com.wakeup.sync.TimetableSyncPaths
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -22,7 +28,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.time.LocalDate
+import java.util.concurrent.TimeUnit
 
 /** 手表端界面状态。字段刻意比手机端少：表盘上只够看"哪天、哪几节、什么课"。 */
 data class WearUiState(
@@ -39,6 +47,10 @@ data class WearUiState(
     val hasSource: Boolean = true,
     /** 当前配置的课表链接（手表端只回显 token）。 */
     val sourceUrl: String = "",
+    /** 「从手机同步」的状态文案（空串表示没操作过）。 */
+    val phoneSyncStatus: String = "",
+    /** null=进行中/未知，true=成功，false=失败。 */
+    val phoneSyncOk: Boolean? = null,
 ) {
     val totalWeeks: Int get() = timetable.term.totalWeeks.coerceAtLeast(1)
 
@@ -244,6 +256,69 @@ class WearViewModel(private val container: AppContainer) : ViewModel() {
      * 系统只认 `UPDATE_PERIOD_SECONDS` / freshness 那套周期，不会知道我们刚换了课表，
      * 所以每次数据变化都主动请求一次；没有把 Wakeup 添加到表盘/信息块时调用是空操作。
      */
+
+    /**
+     * 「从手机同步」：给手机发一条请求消息，等它把课表推过来。
+     *
+     * 手表上没有浏览器、也登录不了教务系统，所以数据只能由手机提供；
+     * 这里做三件事：发请求 → 等数据（15 秒）→ 把结果写进 [WearUiState.phoneSyncStatus]。
+     */
+    fun requestSyncFromPhone(context: Context) {
+        if (_state.value.isLoading) return
+        val appContext = context.applicationContext
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true, phoneSyncStatus = "正在请求手机推送…", phoneSyncOk = null) }
+            val sent = withContext(Dispatchers.IO) {
+                runCatching {
+                    val nodes = Tasks.await(
+                        Wearable.getNodeClient(appContext).connectedNodes,
+                        NODE_TIMEOUT_SECONDS,
+                        TimeUnit.SECONDS,
+                    )
+                    val node = nodes.firstOrNull() ?: return@runCatching false
+                    Tasks.await(
+                        Wearable.getMessageClient(appContext).sendMessage(
+                            node.id,
+                            TimetableSyncPaths.REQUEST_SYNC,
+                            ByteArray(0),
+                        ),
+                        NODE_TIMEOUT_SECONDS,
+                        TimeUnit.SECONDS,
+                    )
+                    true
+                }.getOrDefault(false)
+            }
+            if (!sent) {
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        phoneSyncStatus = "没有连上的手机：请确认手机端已安装并已连接",
+                        phoneSyncOk = false,
+                    )
+                }
+                return@launch
+            }
+            val receivedAt = withTimeoutOrNull(SYNC_WAIT_MS) { TimetableSyncBus.events.first() }
+            if (receivedAt != null) {
+                container.timetableRepository.cachedTimetable()?.let { timetable ->
+                    applyTimetable(timetable)
+                    refreshWearSurfaces()
+                }
+                _state.update {
+                    it.copy(isLoading = false, phoneSyncStatus = "已从手机同步 ✓", phoneSyncOk = true)
+                }
+            } else {
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        phoneSyncStatus = "等待超时：请确认手机已同步过课表、且蓝牙/网络已连接",
+                        phoneSyncOk = false,
+                    )
+                }
+            }
+        }
+    }
+
     private fun refreshWearSurfaces() {
         val context = container.appContext
         ComplicationRefresher.requestUpdate(context)
@@ -261,6 +336,12 @@ class WearViewModel(private val container: AppContainer) : ViewModel() {
          * 需要最新数据可以手动刷新，或者靠手机端同步后推过来。
          */
         private const val CACHE_FRESH_MS: Long = 6L * 60 * 60 * 1000
+
+    /** 找手机 / 发消息的超时。 */
+    private const val NODE_TIMEOUT_SECONDS = 8L
+
+    /** 「从手机同步」等待数据的最长时间。 */
+    private const val SYNC_WAIT_MS = 15_000L
 
         fun factory(container: AppContainer): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {

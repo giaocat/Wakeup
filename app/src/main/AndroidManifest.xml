@@ -73,6 +73,21 @@
                 <action android:name="com.kieronquinn.app.smartspacer.REQUEST_TARGET_UPDATE" />
             </intent-filter>
         </receiver>
+        <!--
+          手表点「从手机同步」时，由这个 service 把课表推过去并回执结果。
+          action/data 由 GMS 约定（BIND_LISTENER 已废弃）：只接 /wakeup 下的消息。
+        -->
+        <service
+            android:name=".sync.PhoneSyncRequestService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
+                <data
+                    android:scheme="wear"
+                    android:host="*"
+                    android:pathPrefix="/wakeup" />
+            </intent-filter>
+        </service>
     </application>
 
 </manifest>

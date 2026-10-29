@@ -30,6 +30,7 @@ class MainActivity : ComponentActivity() {
                 WearApp(
                     state = state,
                     onRefresh = viewModel::refresh,
+                    onSyncFromPhone = { viewModel.requestSyncFromPhone(applicationContext) },
                     onSelectWeek = viewModel::selectWeek,
                     onSelectDay = viewModel::selectDay,
                     onSaveToken = viewModel::saveToken,

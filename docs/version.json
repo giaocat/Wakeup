@@ -1,7 +1,7 @@
-{
-  "version": "1.4.1",
-  "versionCode": 25,
-  "downloadUrl": "https://fastgit.giaocat.com/https://github.com/giaocat/Wakeup/releases/download/v1.4.1/wakeup-phone-1.4.1.apk",
+﻿{
+  "version": "1.4.2",
+  "versionCode": 26,
+  "downloadUrl": "https://fastgit.giaocat.com/https://github.com/giaocat/Wakeup/releases/download/v1.4.2/wakeup-phone-1.4.2.apk",
   "pageUrl": "https://github.com/giaocat/Wakeup/releases",
-  "notes": "课表导入导出、minSdk 24、依赖升级与走加速站的更新检测"
+  "notes": "手表「从手机同步」、手机「同步到手表」按钮，双端显示同步状态"
 }
