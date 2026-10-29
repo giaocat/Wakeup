@@ -213,6 +213,7 @@ img, svg { max-width: 100%; }
 .hero__lead { font: var(--md-body-large); color: var(--md-on-surface-variant); max-width: 34em; }
 .hero__actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
 .hero__meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+.hero__platform { font: var(--md-label-medium); color: var(--md-on-surface-variant); margin-top: 14px; }
 @media (max-width: 900px) {
   .hero__grid { grid-template-columns: 1fr; gap: 36px; }
   .hero h1 { font: var(--md-headline-large); }
@@ -329,6 +330,24 @@ details.faq__item[open] summary::after { content: "–"; }
 details.faq__item p { margin-top: 10px; font: var(--md-body-medium); color: var(--md-on-surface-variant); }
 
 /* ---------- Download / footer ---------- */
+/* 双端下载卡片 */
+.dl-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 720px) { .dl-grid { grid-template-columns: 1fr; } }
+.dl-card { display: grid; gap: 14px; align-content: start; padding: 28px; }
+.dl-card__head { display: flex; align-items: center; gap: 14px; }
+.dl-card__icon {
+  width: 48px; height: 48px; border-radius: var(--md-shape-lg); flex: none;
+  display: grid; place-items: center;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+.dl-card h3 { font: var(--md-headline-small); }
+.dl-card__meta { font: var(--md-label-medium); color: inherit; opacity: .75; margin-top: 4px; }
+.dl-card__desc { font: var(--md-body-medium); opacity: .9; }
+.dl-card .md-btn { justify-self: start; }
+.dl-card--primary .md-btn, .md-card--primary.dl-card .md-btn { --btn-bg: var(--md-primary); --btn-fg: var(--md-on-primary); }
+.md-card--tertiary { background: var(--md-tertiary-container); color: var(--md-on-tertiary-container); }
+.dl-note { font: var(--md-label-medium); color: var(--md-on-surface-variant); margin-top: 18px; }
+
 .download { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; align-items: center; padding: 40px; }
 .download h2 { font: var(--md-headline-small); margin-bottom: 8px; }
 .download p { font: var(--md-body-medium); color: var(--md-on-primary-container); opacity: .9; }
@@ -405,11 +424,16 @@ html.reveal-ready .reveal.is-in { opacity: 1; transform: none; }
         </p>
         <div class="hero__actions">
           <a class="md-btn" href="https://fastgit.giaocat.com/https://github.com/giaocat/Wakeup/releases/download/v1.3.3/wakeup-phone-1.3.3.apk">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3a1 1 0 0 1 1 1v9.6l3.3-3.3a1 1 0 1 1 1.4 1.4l-5 5a1 1 0 0 1-1.4 0l-5-5a1 1 0 1 1 1.4-1.4L11 13.6V4a1 1 0 0 1 1-1ZM5 19a1 1 0 0 1 1 1h12a1 1 0 0 1 2 0v.5A1.5 1.5 0 0 1 18.5 22h-13A1.5 1.5 0 0 1 4 20.5V20a1 1 0 0 1 1-1Z"/></svg>
-            下载 APK
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm0 3v12h10V6H7Zm4 13.5h2v1h-2v-1Z"/></svg>
+            手机版 APK
+          </a>
+          <a class="md-btn md-btn--tonal" href="https://fastgit.giaocat.com/https://github.com/giaocat/Wakeup/releases/download/v1.3.3/wakeup-wear-1.3.3.apk">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 2h8v3H8V2Zm0 17h8v3H8v-3ZM6 6h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Zm0 3v6h12V9H6Z"/></svg>
+            手表版 APK
           </a>
           <a class="md-btn md-btn--outlined" href="https://github.com/giaocat/Wakeup">查看源码</a>
         </div>
+        <p class="hero__platform">手机 Android 6.0+ · 手表 Wear OS 3+ · 两个包分开安装，课表由手机推送到手表</p>
         <div class="hero__meta">
           <span class="md-chip">免费 · 无广告</span>
           <span class="md-chip">不收集数据</span>
@@ -656,19 +680,42 @@ html.reveal-ready .reveal.is-in { opacity: 1; transform: none; }
 
   <section class="md-section" id="download">
     <div class="wrap">
-      <div class="md-card md-card--primary download reveal">
-        <div>
-          <h2>下载 Wakeup 课表</h2>
-          <p>安装包来自 GitHub Releases，经 <strong>fastgit.giaocat.com</strong> 加速下载；固定签名可直接覆盖升级，开源项目欢迎 issue 与 PR。</p>
-          <p style="margin-top:10px">
-            <a href="https://github.com/giaocat/Wakeup/releases">全部版本与更新说明 →</a>
-          </p>
-        </div>
-        <div class="download__actions">
-          <a class="md-btn" href="https://fastgit.giaocat.com/https://github.com/giaocat/Wakeup/releases/download/v1.3.3/wakeup-phone-1.3.3.apk">手机版 APK</a>
-          <a class="md-btn md-btn--outlined" href="https://fastgit.giaocat.com/https://github.com/giaocat/Wakeup/releases/download/v1.3.3/wakeup-wear-1.3.3.apk">手表版 APK</a>
-        </div>
+      <div class="md-section__head reveal">
+        <span class="md-chip md-chip--primary">下载</span>
+        <h2>选择你的设备</h2>
+        <p>两个安装包分开下载；装好手机端并同步一次课表，手表端会自动收到。安装包来自 GitHub Releases，经 <strong>fastgit.giaocat.com</strong> 加速。</p>
       </div>
+      <div class="dl-grid">
+        <article class="md-card md-card--primary dl-card reveal">
+          <div class="dl-card__head">
+            <span class="dl-card__icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm0 3v12h10V6H7Zm4 13.5h2v1h-2v-1Z"/></svg>
+            </span>
+            <div>
+              <h3>手机版</h3>
+              <p class="dl-card__meta">Android 6.0+ · 2.39 MB</p>
+            </div>
+          </div>
+          <p class="dl-card__desc">课表、今日、下一节课、导入导出，都在这里。</p>
+          <a class="md-btn" href="https://fastgit.giaocat.com/https://github.com/giaocat/Wakeup/releases/download/v1.3.3/wakeup-phone-1.3.3.apk">下载手机版 APK</a>
+        </article>
+        <article class="md-card md-card--tertiary dl-card reveal">
+          <div class="dl-card__head">
+            <span class="dl-card__icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 2h8v3H8V2Zm0 17h8v3H8v-3ZM6 6h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Zm0 3v6h12V9H6Z"/></svg>
+            </span>
+            <div>
+              <h3>手表版</h3>
+              <p class="dl-card__meta">Wear OS 3+ · 2.12 MB</p>
+            </div>
+          </div>
+          <p class="dl-card__desc">表盘复杂功能看「下一节课」，还有信息块（Tile）。</p>
+          <a class="md-btn" href="https://fastgit.giaocat.com/https://github.com/giaocat/Wakeup/releases/download/v1.3.3/wakeup-wear-1.3.3.apk">下载手表版 APK</a>
+        </article>
+      </div>
+      <p class="dl-note reveal">
+        固定签名，可直接覆盖升级 · <a href="https://github.com/giaocat/Wakeup/releases">全部版本与更新说明 →</a>
+      </p>
     </div>
   </section>
 </main>
