@@ -51,7 +51,7 @@ data class UserSettings(
     /** 课表底部隐藏"未排课"课程。 */
     val hideUnscheduled: Boolean = false,
     /** 课表数据来源：新教务系统（登录）还是旧的分享页 token。 */
-    val sourceKind: TimetableSourceKind = TimetableSourceKind.ZF_LOGIN,
+    val sourceKind: TimetableSourceKind = TimetableSourceKind.SHARE_LINK,
     /** 新教务系统地址（正方）。 */
     val zfBaseUrl: String = ZfRemoteDataSource.DEFAULT_BASE_URL,
     /** 新教务系统的课表页路径；各校部署可能不同，所以可改。 */

@@ -393,7 +393,7 @@ private fun SourceSection(
 ) {
     SettingsSection(title = "课表来源") {
         // 两种数据源二选一：教务系统（登录）与分享链接（token）
-        TimetableSourceKind.entries.forEach { kind ->
+        listOf(TimetableSourceKind.SHARE_LINK, TimetableSourceKind.ZF_LOGIN).forEach { kind ->
             val selected = settings.sourceKind == kind
             ListItem(
                 modifier = Modifier.selectable(
@@ -513,8 +513,8 @@ private val TimetableSourceKind.displayName: String
 /** 数据源的一句话说明。 */
 private val TimetableSourceKind.description: String
     get() = when (this) {
-        TimetableSourceKind.ZF_LOGIN -> "登录一次后自动复用会话（验证码需手输）"
-        TimetableSourceKind.SHARE_LINK -> "旧方式：粘贴课表分享链接或 token，无需登录"
+        TimetableSourceKind.ZF_LOGIN -> "备选：需登录（验证码手输），课表周次可能与实际有出入"
+        TimetableSourceKind.SHARE_LINK -> "默认方式：粘贴课表分享链接或 token，无需登录"
     }
 
 /** 「数据与缓存」分组。 */

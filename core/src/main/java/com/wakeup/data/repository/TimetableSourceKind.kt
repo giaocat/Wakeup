@@ -12,12 +12,15 @@ package com.wakeup.data.repository
  * 所以保留为可选项而不是删掉。
  */
 enum class TimetableSourceKind {
-    ZF_LOGIN,
+    /** 默认：分享链接 / token，无需登录，课表与教务系统分享页一致。 */
     SHARE_LINK,
+
+    /** 备选：教务系统（强智），需要登录一次；课表周次可能与实际有出入。 */
+    ZF_LOGIN,
     ;
 
     companion object {
         fun fromName(name: String?): TimetableSourceKind =
-            entries.firstOrNull { it.name == name } ?: ZF_LOGIN
+            entries.firstOrNull { it.name == name } ?: SHARE_LINK
     }
 }
