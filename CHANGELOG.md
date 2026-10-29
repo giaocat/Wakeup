@@ -28,9 +28,13 @@
 - 新增 7 个导入导出单测（往返一致、非本 App 文件、坏 JSON、空文件、高版本、无数据、默认文件名）。
 ### 依赖
 
-- OkHttp / logging-interceptor 升级到 **5.5.1**（合并 Dependabot PR #8）：
-  屏蔽 8 个被攻破的 eMudhra 中间证书（CVE-2026-111943），并带来可选 ECH 支持。
-- 本站官网（`docs/`）随仓库一起发布，Cloudflare Workers 以静态资源方式托管（`wrangler.jsonc`）。
+（以下均为合并 Dependabot PR 的结果，本地已全量验证构建 + 单测）
+
+- **OkHttp / logging-interceptor 5.5.1**（PR #8）：屏蔽 8 个被攻破的 eMudhra 中间证书（CVE-2026-111943），支持可选 ECH。
+- **Kotlin 2.4.21、kotlinx-coroutines 1.11.0、kotlinx-serialization 1.12.0**（PR #5）。
+- **play-services-wearable 20.0.1**（PR #6）：手表与手机之间的课表同步。
+- **GitHub Actions 版本**：checkout v7、setup-java v6、upload-artifact v7（PR #1/#2/#3）。
+- 官网（`docs/`）随仓库发布，Cloudflare Workers 以静态资源方式托管（`wrangler.jsonc`）。
 ## 1.3.3
 
 ### 调整
