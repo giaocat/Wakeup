@@ -26,6 +26,11 @@
 ### 测试
 
 - 新增 7 个导入导出单测（往返一致、非本 App 文件、坏 JSON、空文件、高版本、无数据、默认文件名）。
+### 依赖
+
+- OkHttp / logging-interceptor 升级到 **5.5.1**（合并 Dependabot PR #8）：
+  屏蔽 8 个被攻破的 eMudhra 中间证书（CVE-2026-111943），并带来可选 ECH 支持。
+- 本站官网（`docs/`）随仓库一起发布，Cloudflare Workers 以静态资源方式托管（`wrangler.jsonc`）。
 ## 1.3.3
 
 ### 调整
