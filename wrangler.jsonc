@@ -1,0 +1,15 @@
+{
+  // Cloudflare Workers（静态资源模式）：不做构建，直接把 docs/ 作为站点发布。
+  // 这样 Workers Builds 的检查不会再去找 Android 产物，PR 上也不会出现红叉。
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "wakeup",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./docs",
+    // docs/404.html 会被当作 404 页面返回，而不是兜底到 index.html
+    "not_found_handling": "404-page"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

@@ -12,19 +12,27 @@ python -m http.server 8791 --bind 127.0.0.1 --directory docs
 # 打开 http://127.0.0.1:8791/
 ```
 
-## 部署到 Cloudflare Pages
+## 部署到 Cloudflare
 
-1. Cloudflare Dashboard → **Workers & Pages** → **Create** → **Pages** → **Connect to Git**；
-2. 选择仓库 `giaocat/Wakeup`，分支 `main`；
-3. 构建设置：
-   - **Framework preset**：`None`
-   - **Build command**：留空（不构建）
-   - **Build output directory**：`docs`
-4. 保存并部署；之后每次推 `main` 会自动重新部署。
+站点是纯静态文件，两种接法都行。仓库现在按 **Workers（静态资源）** 配好，见根目录 `wrangler.jsonc`。
 
-`docs/_headers` 会被 Cloudflare Pages 识别并生效（安全头 + HTML 不缓存），`robots.txt` 与 `404.html` 也一并发布。
+### 方式 A：Workers（当前配置）
 
-自定义域名建议用 `wakeup.giaocat.com`（DNS 由 Cloudflare 托管时，Pages 里点一次即可绑定并自动签发证书）。
+`wrangler.jsonc` 里已声明 `assets.directory = "./docs"`、`not_found_handling = "404-page"`，所以不需要构建：
+
+1. Cloudflare → **Workers & Pages** → 选中 `wakeup` 这个 Worker → **Settings → Build**；
+2. **Build command** 留空，**Deploy command** 用 `npx wrangler deploy`；
+3. 推 `main` 即自动部署，PR 会跑预览部署。
+
+### 方式 B：Pages
+
+1. **Create → Pages → Connect to Git**，选 `giaocat/Wakeup`、分支 `main`；
+2. Framework preset `None`，**Build command 留空**，**Build output directory 填 `docs`**；
+3. 保存并部署。
+
+`docs/_headers` 在这两种方式下都会生效（安全头 + HTML 不缓存），`robots.txt`、`404.html` 一并发布。
+
+自定义域名建议用 `wakeup.giaocat.com`（DNS 在 Cloudflare 时点一次即可绑定并自动签发证书）。
 
 ## 发版时要同步的地方
 
