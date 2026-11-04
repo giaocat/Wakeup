@@ -4,7 +4,7 @@
 appVersionName = "1.4.2"
 appVersionCode = "26"
 
-agp = "9.4.1"
+agp = "9.5.0"
 kotlin = "2.4.21"
 # 以下版本全部控制在 minCompileSdk <= 36：
 # 公开 SDK 仓库最高只提供 platforms;android-36，android-37 仍是 preview 频道，
