@@ -23,7 +23,7 @@ navigation = "2.10.2"
 datastore = "1.3.0"
 retrofit = "3.0.0"
 okhttp = "5.5.1"
-kotlinxSerialization = "1.12.0"
+kotlinxSerialization = "1.13.0"
 kotlinxCoroutines = "1.11.0"
 # Smartspacer 插件 SDK（Apache 2.0）。1.1 是 Maven Central 上 sdk-plugin 的最新版。
 # 注意：SDK 的 AAR 声明 minSdk 29，而本项目 minSdk 26，
